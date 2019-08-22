@@ -1,0 +1,13 @@
+version: '3'
+services:
+  imperfect-dollop-mariadb:
+    image: 'mariadb:10.4'
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+    ports:
+    - "42306:3306"
+  imperfect-dollop-rabbitmq:
+    image: 'rabbitmq:3-management'
+    ports:
+    - "42671:15671"
+    - "42672:15672"
