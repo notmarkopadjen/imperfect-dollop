@@ -25,7 +25,16 @@ namespace Paden.ImperfectDollop
 
         public virtual StatusCode Update(T entity)
         {
-            return UpdateInSource(entity);
+            entity.Version++;
+            try
+            {
+                return UpdateInSource(entity);
+            }
+            catch (Exception)
+            {
+                entity.Version--;
+                throw;
+            }
         }
         protected abstract StatusCode UpdateInSource(T entity);
 

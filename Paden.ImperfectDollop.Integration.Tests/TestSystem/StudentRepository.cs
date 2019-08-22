@@ -1,6 +1,7 @@
 ﻿using Dapper.Contrib.Extensions;
 using Microsoft.Extensions.Configuration;
 using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
 using System.Data;
 
@@ -8,38 +9,40 @@ namespace Paden.ImperfectDollop.Integration.Tests.TestSystem
 {
     public class StudentRepository : DictionaryRepository<Student, int>
     {
-        static readonly string connectionString = new ConfigurationBuilder().AddJsonFile("appsettings.json", false, false).Build().GetConnectionString("DefaultConnection");
+        public readonly string ConnectionString = new ConfigurationBuilder().AddJsonFile("appsettings.json", false, false).Build().GetConnectionString("DefaultConnection");
 
         protected override StatusCode CreateInSource(Student entity)
         {
-            using (IDbConnection db = new MySqlConnection(connectionString))
-            {
-                return ExecuteHandled(() => db.Insert(entity));
-            }
+            return WithConnection(db => ExecuteHandled(() => db.Insert(entity)));
         }
 
         protected override StatusCode DeleteInSource(int id)
         {
-            using (IDbConnection db = new MySqlConnection(connectionString))
-            {
-                return ExecuteHandled(() => db.Delete(new Student { Id = id }));
-            }
+            return WithConnection(db => ExecuteHandled(() => db.Delete(new Student { Id = id })));
         }
 
         protected override IEnumerable<Student> GetAllFromSource()
         {
-            using (IDbConnection db = new MySqlConnection(connectionString))
-            {
-                return db.GetAll<Student>();
-            }
+            return WithConnection(db => db.GetAll<Student>());
         }
 
         protected override StatusCode UpdateInSource(Student entity)
         {
-            using (IDbConnection db = new MySqlConnection(connectionString))
+            return WithConnection(db => ExecuteHandled(() => db.Update(entity)));
+        }
+
+        public T WithConnection<T>(Func<IDbConnection, T> function)
+        {
+            using (IDbConnection db = new MySqlConnection(ConnectionString))
             {
-                return ExecuteHandled(() => db.Update(entity));
+                db.Open();
+                return function(db);
             }
+        }
+
+        public int ExecuteStatement(string sql)
+        {
+            return WithConnection(db => new MySqlCommand(sql, db as MySqlConnection).ExecuteNonQuery());
         }
     }
 }
