@@ -32,6 +32,11 @@ namespace Paden.ImperfectDollop.Integration.Tests
         [Fact]
         public void GetAll_Should_Return_Entities()
         {
+            systemUnderTest.Create(new Student
+            {
+                Name = "Not Marko Padjen"
+            });
+
             var sw = new Stopwatch();
             sw.Start();
             Assert.True(systemUnderTest.GetAll().ToArray().Length > 0);
