@@ -9,5 +9,7 @@ services:
   imperfect-dollop-rabbitmq:
     image: 'rabbitmq:3-management'
     ports:
+    - "41671:5671"
+    - "41672:5672"
     - "42671:15671"
     - "42672:15672"

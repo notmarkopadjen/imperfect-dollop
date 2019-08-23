@@ -1,7 +1,9 @@
+using Paden.ImperfectDollop.Broker.RabbitMQ;
 using Paden.ImperfectDollop.Integration.Tests.TestSystem;
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -12,12 +14,17 @@ namespace Paden.ImperfectDollop.Integration.Tests
         const int studentId = 1;
 
         private readonly ITestOutputHelper output;
+
         StudentRepository systemUnderTest;
+        RabbitMQBroker broker;
 
         public StudentRepositoryTests(ITestOutputHelper output)
         {
             systemUnderTest = new StudentRepository();
             systemUnderTest.ExecuteStatement(Student.ReCreateStatement);
+
+            broker = new RabbitMQBroker();
+            broker.StartFor(systemUnderTest);
 
             this.output = output;
         }
@@ -34,8 +41,11 @@ namespace Paden.ImperfectDollop.Integration.Tests
         }
 
         [Fact]
-        public void Repository_Should_Create_Update_Delete_Entity_And_Return_Proper_Results_Using_Database_And_Cache()
+        public void Repository_Should_Create_Update_Delete_Entity_And_Return_Proper_Results_Using_Database_And_Cache_On_All_Connected_Repositories()
         {
+            var repository2 = new StudentRepository();
+            broker.StartFor(repository2);
+
             systemUnderTest.Create(new Student
             {
                 Name = "Not Marko Padjen"
@@ -51,6 +61,8 @@ namespace Paden.ImperfectDollop.Integration.Tests
 
             // Checking if database calls return updated name
             Assert.Equal(newName, systemUnderTest.GetAll().First().Name);
+            Thread.Sleep(100);
+            Assert.Equal(newName, repository2.GetAll().First().Name);
 
             systemUnderTest.Delete(studentId);
 

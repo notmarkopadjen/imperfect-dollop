@@ -5,9 +5,9 @@ using System.Linq;
 
 namespace Paden.ImperfectDollop
 {
-    public abstract class DictionaryRepository<T, TId> : Repository<T, TId> where T : Entity<TId>
+    public abstract class DictionaryRepository<T, TId> : Repository<T, TId> where T : Entity<TId>, new()
     {
-        ConcurrentDictionary<TId, T> store;
+        readonly ConcurrentDictionary<TId, T> store;
 
         public DictionaryRepository()
         {
@@ -34,7 +34,7 @@ namespace Paden.ImperfectDollop
         {
             return BaseCRUD(
                 () => base.Create(entity),
-                () => store.TryAdd(entity.Id, entity)
+                () => CreateReceived(entity)
             );
         }
 
@@ -42,7 +42,7 @@ namespace Paden.ImperfectDollop
         {
             return BaseCRUD(
                 () => base.Update(entity),
-                () => store[entity.Id] = entity
+                () => UpdateReceived(entity)
             );
         }
 
@@ -50,7 +50,7 @@ namespace Paden.ImperfectDollop
         {
             return BaseCRUD(
                 () => base.Delete(id),
-                () => store.TryRemove(id, out var _)
+                () => DeleteReceived(id)
             );
         }
 
@@ -69,6 +69,21 @@ namespace Paden.ImperfectDollop
             {
                 return StatusCode.UnkownError;
             }
+        }
+
+        public override void CreateReceived(T entity)
+        {
+            store.TryAdd(entity.Id, entity);
+        }
+
+        public override void UpdateReceived(T entity)
+        {
+            store[entity.Id] = entity;
+        }
+
+        public override void DeleteReceived(TId id)
+        {
+            store.TryRemove(id, out var _);
         }
     }
 }
