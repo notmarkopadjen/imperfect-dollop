@@ -10,6 +10,7 @@ namespace Paden.ImperfectDollop
         readonly ConcurrentDictionary<TId, T> store;
 
         public override bool IsThreadSafe => true;
+        public override ulong ItemCount => (ulong)store.Count;
 
         public ConcurrentDictionaryRepository()
         {

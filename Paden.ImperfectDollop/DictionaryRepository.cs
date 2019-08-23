@@ -9,6 +9,7 @@ namespace Paden.ImperfectDollop
         readonly Dictionary<TId, T> store;
 
         public override bool IsThreadSafe => false;
+        public override ulong ItemCount => (ulong)store.Count;
 
         public DictionaryRepository()
         {

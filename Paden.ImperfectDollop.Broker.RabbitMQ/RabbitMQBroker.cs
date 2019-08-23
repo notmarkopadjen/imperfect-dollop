@@ -18,14 +18,15 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             rabbitMQUri = new Lazy<string>(() => config.Value["RabbitMQ:Uri"]);
         }
 
-        IConnection connection;
+        readonly IConnection connection;
+        readonly ConnectionFactory connectionFactory;
 
         public bool IsMultiThreaded => true;
 
         public RabbitMQBroker()
         {
-            var factory = new ConnectionFactory() { Uri = new Uri(rabbitMQUri.Value) };
-            connection = factory.CreateConnection();
+            connectionFactory = new ConnectionFactory() { Uri = new Uri(rabbitMQUri.Value) };
+            connection = connectionFactory.CreateConnection();
         }
 
         public void Dispose()
@@ -48,25 +49,13 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             }
 
             var channel = connection.CreateModel();
-
             var qName = "ImperfectDollop." + typeof(T);
-
-            channel.QueueDeclare(queue: qName,
-                                 durable: false,
-                                 exclusive: false,
-                                 autoDelete: false,
-                                 arguments: null);
+            channel.QueueDeclare(queue: qName, durable: false, exclusive: false, autoDelete: false, arguments: null);
 
             var consumer = new EventingBasicConsumer(channel);
             consumer.Received += (model, ea) =>
             {
-                var body = ea.Body;
-                var message = Encoding.UTF8.GetString(body);
-
-                var action = JsonConvert.DeserializeObject<EntityEventArgs<T>>(message);
-
-                Console.WriteLine("Received {0}", action);
-
+                var action = JsonConvert.DeserializeObject<EntityEventArgs<T>>(Encoding.UTF8.GetString(ea.Body));
                 switch (action.EntityAction)
                 {
                     case EntityAction.Create:
@@ -80,21 +69,93 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
                         break;
                 }
             };
-            channel.BasicConsume(queue: qName,
-                                 autoAck: true,
-                                 consumer: consumer);
+            channel.BasicConsume(queue: qName, autoAck: true, consumer: consumer);
 
-            Repository<T, TId> .EntityEventHandler repositoryAction = (object sender, EntityEventArgs<T> a) =>
+            Repository<T, TId>.EntityEventHandler repositoryAction = (object sender, EntityEventArgs<T> a) =>
             {
-                channel.BasicPublish(exchange: "",
-                                 routingKey: qName,
-                                 basicProperties: null,
-                                 body: Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(a)));
+                channel.BasicPublish(exchange: string.Empty, routingKey: qName, basicProperties: null, body: Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(a)));
             };
 
             repository.EntityCreated += repositoryAction;
             repository.EntityUpdated += repositoryAction;
             repository.EntityDeleted += repositoryAction;
+
+            repository.FallbackFunction = () =>
+            {
+                using (var rpcClient = new RPCClient<T>(connection))
+                {
+                    return rpcClient.GetData();
+                }
+            };
+
+            StartRPCServer(repository);
+        }
+
+        void StartRPCServer<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
+        {
+            IModel rpcChannel = null;
+
+            Repository<T, TId>.SourceConnectionStateChangedEventHandler connectionStateChangedAction = null;
+            connectionStateChangedAction = (object sender, SourceConnectionStateChangedEventArgs a) =>
+            {
+                if (a.IsAlive)
+                {
+                    repository.SourceConnectionStateChanged -= connectionStateChangedAction;
+                    StartRPCServer(repository);
+                }
+                else
+                {
+                    rpcChannel?.Close();
+                }
+            };
+            repository.SourceConnectionStateChanged += connectionStateChangedAction;
+
+            if (!repository.SourceConnectionIsAlive) return;
+
+            rpcChannel = connection.CreateModel();
+            rpcChannel.QueueDeclare(queue: RPCClient<T>.RoutingKey, durable: false, exclusive: false, autoDelete: false, arguments: null);
+            rpcChannel.BasicQos(0, 1, false);
+            var rpcConsumer = new EventingBasicConsumer(rpcChannel);
+            rpcChannel.BasicConsume(queue: RPCClient<T>.RoutingKey, autoAck: false, consumer: rpcConsumer);
+            
+            rpcConsumer.Received += (model, ea) =>
+            {
+                if (!repository.SourceConnectionAliveSince.HasValue)
+                {
+                    rpcChannel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
+                    try
+                    {
+                        rpcChannel.Close();
+                        rpcChannel = null;
+                    }
+                    catch (Exception)
+                    {
+                        // ignored
+                    }
+                    return;
+                }
+
+                string response = null;
+
+                var props = ea.BasicProperties;
+                var replyProps = rpcChannel.CreateBasicProperties();
+                replyProps.CorrelationId = props.CorrelationId;
+
+                try
+                {
+                    response = JsonConvert.SerializeObject(repository.GetAll());
+                }
+                catch (Exception)
+                {
+                    // ignored
+                    response = string.Empty;
+                }
+                finally
+                {
+                    rpcChannel.BasicPublish(exchange: string.Empty, routingKey: props.ReplyTo, basicProperties: replyProps, body: Encoding.UTF8.GetBytes(response));
+                    rpcChannel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                }
+            };
         }
     }
 }

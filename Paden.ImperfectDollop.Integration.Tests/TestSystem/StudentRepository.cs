@@ -10,7 +10,7 @@ namespace Paden.ImperfectDollop.Integration.Tests.TestSystem
     public class StudentRepository : ConcurrentDictionaryRepository<Student, int>
     {
         public readonly string ConnectionString = new ConfigurationBuilder().AddJsonFile("appsettings.json", false, false).Build().GetConnectionString("DefaultConnection");
-
+        
         protected override StatusCode CreateInSource(Student entity)
         {
             return WithConnection(db => ExecuteHandled(() => db.Insert(entity)));
