@@ -25,6 +25,9 @@ namespace Paden.ImperfectDollop
         }
         public bool SourceConnectionIsAlive => SourceConnectionAliveSince.HasValue;
 
+        public DateTime? LastSourceRead { get; protected set; }
+        public virtual TimeSpan? ExpiryInterval { get; } = TimeSpan.FromMinutes(2);
+
         public delegate void EntityEventHandler(object sender, EntityEventArgs<T> a);
         public event EntityEventHandler EntityCreated;
         public event EntityEventHandler EntityUpdated;
@@ -45,6 +48,7 @@ namespace Paden.ImperfectDollop
             try
             {
                 var result = GetAllFromSource();
+                LastSourceRead = 
                 SourceConnectionAliveSince = DateTime.UtcNow;
                 return result;
             }

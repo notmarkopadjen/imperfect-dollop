@@ -2,12 +2,13 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Paden.ImperfectDollop
 {
     public abstract class ConcurrentDictionaryRepository<T, TId> : Repository<T, TId> where T : Entity<TId>, new()
     {
-        readonly ConcurrentDictionary<TId, T> store;
+        ConcurrentDictionary<TId, T> store;
 
         public override bool IsThreadSafe => true;
         public override ulong ItemCount => (ulong)store.Count;
@@ -15,17 +16,40 @@ namespace Paden.ImperfectDollop
         public ConcurrentDictionaryRepository()
         {
             store = new ConcurrentDictionary<TId, T>(
-                    GetAllFromSource().Select(l => new KeyValuePair<TId, T>(l.Id, l))
-                );
+                         base.GetAll().Select(l => new KeyValuePair<TId, T>(l.Id, l)));
+        }
+
+        bool isRefreshing;
+        private void RefreshIfRequired()
+        {
+            if (isRefreshing) return;
+            if (ExpiryInterval.HasValue && !LastSourceRead.HasValue || DateTime.UtcNow - LastSourceRead.Value >= ExpiryInterval)
+            {
+                Task.Run(() =>
+                {
+                    isRefreshing = true;
+                    try
+                    {
+                        store = new ConcurrentDictionary<TId, T>(
+                         base.GetAll().Select(l => new KeyValuePair<TId, T>(l.Id, l)));
+                    }
+                    finally
+                    {
+                        isRefreshing = false;
+                    }
+                });
+            }
         }
 
         public override IEnumerable<T> GetAll()
         {
+            RefreshIfRequired();
             return store.Values;
         }
 
         public override T Get(TId id)
         {
+            RefreshIfRequired();
             return store.TryGetValue(id, out var entity) ? entity : default;
         }
         protected override T GetFromSource(TId id)
@@ -81,7 +105,7 @@ namespace Paden.ImperfectDollop
 
         public override void UpdateReceived(T entity)
         {
-            store[entity.Id] = entity;
+            store.AddOrUpdate(entity.Id, id => entity, (id, oldValue) => oldValue.Version < entity.Version ? entity : oldValue);
         }
 
         public override void DeleteReceived(TId id)
