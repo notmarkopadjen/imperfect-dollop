@@ -18,6 +18,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             rabbitMQUri = new Lazy<string>(() => config.Value["RabbitMQ:Uri"]);
         }
 
+        string ClientId { get; } = $"{Environment.MachineName}.{Guid.NewGuid():N}";
         readonly IConnection connection;
         readonly ConnectionFactory connectionFactory;
 
@@ -26,11 +27,22 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
         public RabbitMQBroker()
         {
             connectionFactory = new ConnectionFactory() { Uri = new Uri(rabbitMQUri.Value) };
-            connection = connectionFactory.CreateConnection();
+            connection = connectionFactory.CreateConnection(ClientId);
         }
+
+        public event EventHandler BeforeDispose;
 
         public void Dispose()
         {
+            try
+            {
+                BeforeDispose?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception)
+            {
+                // ignored
+            }
+
             try
             {
                 connection?.Dispose();
@@ -49,8 +61,17 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             }
 
             var channel = connection.CreateModel();
-            var qName = "ImperfectDollop." + typeof(T);
+            var xName = "Paden.ImperfectDollop." + typeof(T);
+            var qName = $"{xName}.{ClientId}";
+            channel.ExchangeDeclare(exchange: xName, ExchangeType.Fanout);
             channel.QueueDeclare(queue: qName, durable: false, exclusive: false, autoDelete: false, arguments: null);
+            channel.QueueBind(queue: qName, exchange: xName, routingKey: qName /* will be ignored */, arguments: null);
+
+            BeforeDispose += (object sender, EventArgs e) =>
+            {
+                channel.QueueUnbind(queue: qName, exchange: xName, routingKey: qName /* will be ignored */, arguments: null);
+                channel.QueueDelete(queue: qName);
+            };
 
             var consumer = new EventingBasicConsumer(channel);
             consumer.Received += (model, ea) =>
@@ -73,7 +94,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
 
             Repository<T, TId>.EntityEventHandler repositoryAction = (object sender, EntityEventArgs<T> a) =>
             {
-                channel.BasicPublish(exchange: string.Empty, routingKey: qName, basicProperties: null, body: Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(a)));
+                channel.BasicPublish(exchange: xName, routingKey: qName, basicProperties: null, body: Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(a)));
             };
 
             repository.EntityCreated += repositoryAction;
@@ -117,7 +138,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             rpcChannel.BasicQos(0, 1, false);
             var rpcConsumer = new EventingBasicConsumer(rpcChannel);
             rpcChannel.BasicConsume(queue: RPCClient<T>.RoutingKey, autoAck: false, consumer: rpcConsumer);
-            
+
             rpcConsumer.Received += (model, ea) =>
             {
                 if (!repository.SourceConnectionAliveSince.HasValue)

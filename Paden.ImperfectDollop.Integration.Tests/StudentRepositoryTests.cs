@@ -9,7 +9,7 @@ using Xunit.Abstractions;
 
 namespace Paden.ImperfectDollop.Integration.Tests
 {
-    public class StudentRepositoryTests
+    public class StudentRepositoryTests : IDisposable
     {
         const int studentId = 1;
 
@@ -27,6 +27,18 @@ namespace Paden.ImperfectDollop.Integration.Tests
             broker.StartFor(systemUnderTest);
 
             this.output = output;
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                broker.Dispose();
+            }
+            catch (Exception)
+            {
+                // ignored
+            }
         }
 
         [Fact]
@@ -49,30 +61,33 @@ namespace Paden.ImperfectDollop.Integration.Tests
         public void Repository_Should_Create_Update_Delete_Entity_And_Return_Proper_Results_Using_Database_And_Cache_On_All_Connected_Repositories()
         {
             var repository2 = new StudentRepository();
-            broker.StartFor(repository2);
-
-            systemUnderTest.Create(new Student
+            using (var broker2 = new RabbitMQBroker())
             {
-                Name = "Not Marko Padjen"
-            });
+                broker2.StartFor(repository2);
 
-            string newName;
+                systemUnderTest.Create(new Student
+                {
+                    Name = "Not Marko Padjen"
+                });
 
-            systemUnderTest.Update(new Student
-            {
-                Id = studentId,
-                Name = newName = $"Name {DateTime.Now}"
-            });
+                string newName;
 
-            // Checking if database calls return updated name
-            Assert.Equal(newName, systemUnderTest.GetAll().First().Name);
-            Thread.Sleep(100);
-            Assert.Equal(newName, repository2.GetAll().First().Name);
+                systemUnderTest.Update(new Student
+                {
+                    Id = studentId,
+                    Name = newName = $"Name {DateTime.Now}"
+                });
 
-            systemUnderTest.Delete(studentId);
+                // Checking if database calls return updated name
+                Assert.Equal(newName, systemUnderTest.GetAll().First().Name);
+                Thread.Sleep(100);
+                Assert.Equal(newName, repository2.GetAll().First().Name);
 
-            // Checking if database table is empty after entity deletion
-            Assert.False(systemUnderTest.GetAll().Any());
+                systemUnderTest.Delete(studentId);
+
+                // Checking if database table is empty after entity deletion
+                Assert.False(systemUnderTest.GetAll().Any());
+            }
         }
     }
 }

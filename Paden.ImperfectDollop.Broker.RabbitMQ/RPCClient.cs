@@ -17,7 +17,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
         private readonly BlockingCollection<string> respQueue = new BlockingCollection<string>();
         private readonly IBasicProperties props;
 
-        public static string RoutingKey { get; } = "ImperfectDollop.RPC." + typeof(T);
+        public static string RoutingKey { get; } = "Paden.ImperfectDollop.RPC." + typeof(T);
 
         public RPCClient(IConnection connection)
         {
