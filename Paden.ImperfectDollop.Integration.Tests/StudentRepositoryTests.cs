@@ -9,24 +9,28 @@ using Xunit.Abstractions;
 
 namespace Paden.ImperfectDollop.Integration.Tests
 {
-    public class StudentRepositoryTests : IDisposable
+    public class StudentRepositoryTests : IClassFixture<DatabaseFixture>, IDisposable
     {
         const int studentId = 1;
 
+        private readonly DatabaseFixture fixture;
         private readonly ITestOutputHelper output;
 
         StudentRepository systemUnderTest;
         RabbitMQBroker broker;
 
-        public StudentRepositoryTests(ITestOutputHelper output)
+        public StudentRepositoryTests(DatabaseFixture fixture, ITestOutputHelper output)
         {
+            this.fixture = fixture;
+            this.output = output;
+
+            fixture.RecreateTables();
+
             systemUnderTest = new StudentRepository();
             systemUnderTest.ExecuteStatement(Student.ReCreateStatement);
 
             broker = new RabbitMQBroker();
             broker.StartFor(systemUnderTest);
-
-            this.output = output;
         }
 
         public void Dispose()

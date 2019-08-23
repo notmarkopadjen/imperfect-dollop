@@ -14,7 +14,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
 
         static RabbitMQBroker()
         {
-            config = new Lazy<IConfigurationRoot>(() => new ConfigurationBuilder().AddJsonFile("appsettings.json", false, false).Build());
+            config = new Lazy<IConfigurationRoot>(() => new ConfigurationBuilder().AddJsonFile("appsettings.json", false, false).AddEnvironmentVariables().Build());
             rabbitMQUri = new Lazy<string>(() => config.Value["RabbitMQ:Uri"]);
         }
 
