@@ -1,18 +1,19 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Paden.ImperfectDollop
 {
-    public abstract class DictionaryRepository<T, TId> : Repository<T, TId> where T : Entity<TId>, new()
+    public abstract class ConcurrentDictionaryRepository<T, TId> : Repository<T, TId> where T : Entity<TId>, new()
     {
-        readonly Dictionary<TId, T> store;
+        readonly ConcurrentDictionary<TId, T> store;
 
-        public override bool IsThreadSafe => false;
+        public override bool IsThreadSafe => true;
 
-        public DictionaryRepository()
+        public ConcurrentDictionaryRepository()
         {
-            store = new Dictionary<TId, T>(
+            store = new ConcurrentDictionary<TId, T>(
                     GetAllFromSource().Select(l => new KeyValuePair<TId, T>(l.Id, l))
                 );
         }
@@ -84,7 +85,7 @@ namespace Paden.ImperfectDollop
 
         public override void DeleteReceived(TId id)
         {
-            store.Remove(id, out var _);
+            store.TryRemove(id, out var _);
         }
     }
 }

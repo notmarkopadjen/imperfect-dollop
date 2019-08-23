@@ -9,6 +9,8 @@ namespace Paden.ImperfectDollop
         public event EntityEventHandler EntityCreated;
         public event EntityEventHandler EntityUpdated;
         public event EntityEventHandler EntityDeleted;
+        
+        public abstract bool IsThreadSafe { get; }
 
         public virtual IEnumerable<T> GetAll()
         {

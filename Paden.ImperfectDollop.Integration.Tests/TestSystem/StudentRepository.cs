@@ -7,7 +7,7 @@ using System.Data;
 
 namespace Paden.ImperfectDollop.Integration.Tests.TestSystem
 {
-    public class StudentRepository : DictionaryRepository<Student, int>
+    public class StudentRepository : ConcurrentDictionaryRepository<Student, int>
     {
         public readonly string ConnectionString = new ConfigurationBuilder().AddJsonFile("appsettings.json", false, false).Build().GetConnectionString("DefaultConnection");
 

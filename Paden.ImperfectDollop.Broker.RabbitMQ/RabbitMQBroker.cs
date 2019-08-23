@@ -20,10 +20,11 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
 
         IConnection connection;
 
+        public bool IsMultiThreaded => true;
+
         public RabbitMQBroker()
         {
             var factory = new ConnectionFactory() { Uri = new Uri(rabbitMQUri.Value) };
-            //var factory = new ConnectionFactory() { HostName = "rabbitmq.local:42671" };
             connection = factory.CreateConnection();
         }
 
@@ -41,6 +42,11 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
 
         public void StartFor<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
         {
+            if (!repository.IsThreadSafe)
+            {
+                throw new ApplicationException($"Repository {repository} is not thread safe.");
+            }
+
             var channel = connection.CreateModel();
 
             var qName = "ImperfectDollop." + typeof(T);
