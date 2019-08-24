@@ -44,47 +44,6 @@ namespace Paden.ImperfectDollop
             throw new NotImplementedException();
         }
 
-        public override StatusCode Create(T entity)
-        {
-            return BaseCRUD(
-                () => base.Create(entity),
-                () => CreateReceived(entity)
-            );
-        }
-
-        public override StatusCode Update(T entity)
-        {
-            return BaseCRUD(
-                () => base.Update(entity),
-                () => UpdateReceived(entity)
-            );
-        }
-
-        public override StatusCode Delete(TId id)
-        {
-            return BaseCRUD(
-                () => base.Delete(id),
-                () => DeleteReceived(id)
-            );
-        }
-
-        private StatusCode BaseCRUD(Func<StatusCode> baseFunction, Action successAction)
-        {
-            try
-            {
-                var result = baseFunction();
-                if (result == StatusCode.Success)
-                {
-                    successAction();
-                }
-                return result;
-            }
-            catch (Exception)
-            {
-                return StatusCode.UnkownError;
-            }
-        }
-
         public override void CreateReceived(T entity)
         {
             store.TryAdd(entity.Id, entity);

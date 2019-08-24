@@ -34,10 +34,10 @@ namespace Paden.ImperfectDollop.Integration.Tests
             using (var broker = CreateBroker())
             {
                 var systemUnderTest = new StudentRepository(broker);
-                Assert.Equal(StatusCode.Success, systemUnderTest.Create(new Student
+                systemUnderTest.Create(new Student
                 {
                     Name = "Not Marko Padjen"
-                }));
+                });
 
                 var sw = new Stopwatch();
                 sw.Start();
@@ -57,26 +57,25 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 var repository = new StudentRepository(broker);
                 var repository2 = new StudentRepository(broker2);
 
-                Assert.Equal(StatusCode.Success, repository.Create(new Student
+                repository.Create(new Student
                 {
                     Name = "Not Marko Padjen"
-                }));
+                });
 
                 string newName;
 
-                Assert.Equal(StatusCode.Success, repository.Update(new Student
+                repository.Update(new Student
                 {
                     Id = studentId,
                     Name = newName = $"Name {DateTime.Now}"
-                }));
+                });
 
                 // Checking if database calls return updated name
                 Assert.Equal(newName, repository.GetAll().First().Name);
                 Thread.Sleep(100);
                 Assert.Equal(newName, repository2.GetAll().First().Name);
 
-                Assert.Equal(StatusCode.Success, repository.Delete(studentId));
-
+                repository.Delete(studentId);
                 // Checking if database table is empty after entity deletion
                 Assert.False(repository.GetAll().Any());
             }
@@ -126,10 +125,10 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 var rand = new Random();
                 Parallel.For(10_001, 10_101, l =>
                 {
-                    Assert.Equal(StatusCode.Success, repositoryBag[rand.Next(systemsCount - 1)].Create(new Student
+                    repositoryBag[rand.Next(systemsCount - 1)].Create(new Student
                     {
                         Name = "100"
-                    }));
+                    });
                 });
                 AssertAllRepositories(r => r.GetAll().Count(l => l.Id > 10_000) == 100);
             }
@@ -187,7 +186,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 Parallel.ForEach(masterRepository.GetAll().Take(100), l =>
                 {
                     l.Name = "100";
-                    Assert.Equal(StatusCode.Success, repositoryBag[rand.Next(systemsCount - 1)].Update(l));
+                    repositoryBag[rand.Next(systemsCount - 1)].Update(l);
                 });
                 AssertAllRepositories(r => r.GetAll().Count(l => l.Name == "100") == 100);
             }
@@ -244,7 +243,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 var rand = new Random();
                 Parallel.ForEach(masterRepository.GetAll().Where(i => i.Id % 2 == 0), l =>
                 {
-                    Assert.Equal(StatusCode.Success, repositoryBag[rand.Next(systemsCount - 1)].Delete(l.Id));
+                    repositoryBag[rand.Next(systemsCount - 1)].Delete(l.Id);
                 });
                 AssertAllRepositories(r => r.ItemCount == entitiesCount / 2);
             }

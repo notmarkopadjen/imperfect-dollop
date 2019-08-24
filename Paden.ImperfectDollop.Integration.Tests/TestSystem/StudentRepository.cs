@@ -19,14 +19,14 @@ namespace Paden.ImperfectDollop.Integration.Tests.TestSystem
 
         }
 
-        protected override StatusCode CreateInSource(Student entity)
+        protected override void CreateInSource(Student entity)
         {
-            return WithConnection(db => ExecuteHandled(() => db.Insert(entity)));
+            WithConnection(db => db.Insert(entity));
         }
 
-        protected override StatusCode DeleteInSource(int id)
+        protected override void DeleteInSource(int id)
         {
-            return WithConnection(db => ExecuteHandled(() => db.Delete(new Student { Id = id })));
+            WithConnection(db => db.Delete(new Student { Id = id }));
         }
 
         protected override IEnumerable<Student> GetAllFromSource()
@@ -34,9 +34,9 @@ namespace Paden.ImperfectDollop.Integration.Tests.TestSystem
             return WithConnection(db => db.GetAll<Student>());
         }
 
-        protected override StatusCode UpdateInSource(Student entity)
+        protected override void UpdateInSource(Student entity)
         {
-            return WithConnection(db => ExecuteHandled(() => db.Update(entity)));
+            WithConnection(db => db.Update(entity));
         }
 
         public T WithConnection<T>(Func<IDbConnection, T> function)

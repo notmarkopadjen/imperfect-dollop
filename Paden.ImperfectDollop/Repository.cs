@@ -27,6 +27,7 @@ namespace Paden.ImperfectDollop
 
         public DateTime? LastSourceRead { get; protected set; }
         public virtual TimeSpan? ExpiryInterval { get; } = TimeSpan.FromMinutes(2);
+        public virtual bool IsReadOnly { get; protected set; }
 
         public delegate void EntityEventHandler(object sender, EntityEventArgs<T> a);
         public event EntityEventHandler EntityCreated;
@@ -92,18 +93,18 @@ namespace Paden.ImperfectDollop
         }
         protected abstract T GetFromSource(TId id);
 
-        public virtual StatusCode Create(T entity)
+        public virtual void Create(T entity)
         {
             try
             {
-                var result = CreateInSource(entity);
+                CreateInSource(entity);
                 SourceConnectionAliveSince = DateTime.UtcNow;
                 EntityCreated?.Invoke(this, new EntityEventArgs<T>
                 {
                     EntityAction = EntityAction.Create,
                     Entity = entity
                 });
-                return result;
+                CreateReceived(entity);
             }
             catch (Exception)
             {
@@ -111,21 +112,21 @@ namespace Paden.ImperfectDollop
                 throw;
             }
         }
-        protected abstract StatusCode CreateInSource(T entity);
+        protected abstract void CreateInSource(T entity);
 
-        public virtual StatusCode Update(T entity)
+        public virtual void Update(T entity)
         {
             entity.Version++;
-            StatusCode result;
             try
             {
-                result = UpdateInSource(entity);
+                UpdateInSource(entity);
                 SourceConnectionAliveSince = DateTime.UtcNow;
                 EntityUpdated?.Invoke(this, new EntityEventArgs<T>
                 {
                     EntityAction = EntityAction.Update,
                     Entity = entity
                 });
+                UpdateReceived(entity);
             }
             catch (Exception)
             {
@@ -133,22 +134,21 @@ namespace Paden.ImperfectDollop
                 entity.Version--;
                 throw;
             }
-            return result;
         }
-        protected abstract StatusCode UpdateInSource(T entity);
+        protected abstract void UpdateInSource(T entity);
 
-        public virtual StatusCode Delete(TId id)
+        public virtual void Delete(TId id)
         {
             try
             {
-                var result = DeleteInSource(id);
+                DeleteInSource(id);
                 SourceConnectionAliveSince = DateTime.UtcNow;
                 EntityDeleted?.Invoke(this, new EntityEventArgs<T>
                 {
                     EntityAction = EntityAction.Delete,
                     Entity = new T { Id = id }
                 });
-                return result;
+                DeleteReceived(id);
             }
             catch (Exception)
             {
@@ -156,28 +156,7 @@ namespace Paden.ImperfectDollop
                 throw;
             }
         }
-        protected abstract StatusCode DeleteInSource(TId id);
-
-        protected StatusCode ExecuteHandled(Action action, params Func<Exception, StatusCode?>[] handlers)
-        {
-            try
-            {
-                action();
-                return StatusCode.Success;
-            }
-            catch (Exception ex)
-            {
-                foreach (var handler in handlers)
-                {
-                    var status = handler(ex);
-                    if (status.HasValue)
-                    {
-                        return status.Value;
-                    }
-                }
-                return StatusCode.UnkownError;
-            }
-        }
+        protected abstract void DeleteInSource(TId id);
 
         public abstract void CreateReceived(T entity);
         public abstract void UpdateReceived(T entity);
