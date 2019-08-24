@@ -1,4 +1,3 @@
-using Paden.ImperfectDollop.Broker.RabbitMQ;
 using Paden.ImperfectDollop.Integration.Tests.TestSystem;
 using System;
 using System.Diagnostics;
@@ -10,7 +9,7 @@ using Xunit.Abstractions;
 
 namespace Paden.ImperfectDollop.Integration.Tests
 {
-    public class StudentRepositoryTests : IClassFixture<DatabaseFixture>
+    public abstract class StudentRepositoryTests : IClassFixture<DatabaseFixture>
     {
         const int studentId = 1;
 
@@ -25,10 +24,12 @@ namespace Paden.ImperfectDollop.Integration.Tests
             fixture.RecreateTables();
         }
 
+        protected abstract IBroker CreateBroker();
+
         [Fact]
         public void Should_Return_Entities_When_Asked_For()
         {
-            using (var broker = new RabbitMQBroker())
+            using (var broker = CreateBroker())
             {
                 var systemUnderTest = new StudentRepository(broker);
                 systemUnderTest.Create(new Student
@@ -48,8 +49,8 @@ namespace Paden.ImperfectDollop.Integration.Tests
         [Fact]
         public void Should_Create_Update_Delete_Entity_And_Return_Proper_Results_Using_Database_And_Cache_On_All_Connected_Repositories()
         {
-            using (var broker = new RabbitMQBroker())
-            using (var broker2 = new RabbitMQBroker())
+            using (var broker = CreateBroker())
+            using (var broker2 = CreateBroker())
             {
                 var repository = new StudentRepository(broker);
                 var repository2 = new StudentRepository(broker2);
@@ -91,10 +92,10 @@ namespace Paden.ImperfectDollop.Integration.Tests
             new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
 
             // Systems init
-            var brokerBag = new RabbitMQBroker[systemsCount];
+            var brokerBag = new IBroker[systemsCount];
             for (int i = 0; i < systemsCount; i++)
             {
-                brokerBag[i] = new RabbitMQBroker();
+                brokerBag[i] = CreateBroker();
             }
 
             var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(brokerBag[l])).ToArray();
@@ -154,10 +155,10 @@ namespace Paden.ImperfectDollop.Integration.Tests
             new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
 
             // Systems init
-            var brokerBag = new RabbitMQBroker[systemsCount];
+            var brokerBag = new IBroker[systemsCount];
             for (int i = 0; i < systemsCount; i++)
             {
-                brokerBag[i] = new RabbitMQBroker();
+                brokerBag[i] = CreateBroker();
             }
 
             var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(brokerBag[l])).ToArray();
@@ -214,10 +215,10 @@ namespace Paden.ImperfectDollop.Integration.Tests
             new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
 
             // Systems init
-            var brokerBag = new RabbitMQBroker[systemsCount];
+            var brokerBag = new IBroker[systemsCount];
             for (int i = 0; i < systemsCount; i++)
             {
-                brokerBag[i] = new RabbitMQBroker();
+                brokerBag[i] = CreateBroker();
             }
 
             var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(brokerBag[l])).ToArray();
@@ -273,10 +274,10 @@ namespace Paden.ImperfectDollop.Integration.Tests
             new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
 
             // Systems init
-            var brokerBag = new RabbitMQBroker[systemsCount];
+            var brokerBag = new IBroker[systemsCount];
             for (int i = 0; i < systemsCount; i++)
             {
-                brokerBag[i] = new RabbitMQBroker();
+                brokerBag[i] = CreateBroker();
             }
 
             var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(brokerBag[l])).ToArray();
@@ -309,7 +310,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 Parallel.ForEach(Enumerable.Range(0, systemsCount).Where(i => i % 2 == 0), i =>
                 {
                     brokerBag[i].Dispose();
-                    brokerBag[i] = new RabbitMQBroker();
+                    brokerBag[i] = CreateBroker();
                     repositoryBag[i] = new StudentRepository(brokerBag[i]);
                 });
                 AssertAllRepositories(r => r.ItemCount == entitiesCount);
