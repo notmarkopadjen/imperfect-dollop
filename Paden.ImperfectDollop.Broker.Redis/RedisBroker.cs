@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using StackExchange.Redis;
 using System;
 using System.Threading;
@@ -9,18 +8,9 @@ namespace Paden.ImperfectDollop.Broker.Redis
 {
     public class RedisBroker : IBroker
     {
-        static readonly Lazy<IConfigurationRoot> config;
-        static readonly Lazy<string> redisUri;
-
-        static RedisBroker()
-        {
-            config = new Lazy<IConfigurationRoot>(() => new ConfigurationBuilder().AddJsonFile("appsettings.json", false, false).AddEnvironmentVariables().Build());
-            redisUri = new Lazy<string>(() => config.Value["Redis:Uri"]);
-        }
         string ClientId { get; } = $"{Environment.MachineName}.{Guid.NewGuid():N}";
 
         public bool IsMultiThreaded => false;
-
         public bool SupportsRemoteProcedureCall => true;
 
         readonly ConnectionMultiplexer connection;
@@ -28,9 +18,9 @@ namespace Paden.ImperfectDollop.Broker.Redis
 
         public TimeSpan RPCLoopInterval { get; } = TimeSpan.FromMilliseconds(100);
 
-        public RedisBroker()
+        public RedisBroker(string uri)
         {
-            connection = ConnectionMultiplexer.Connect(redisUri.Value);
+            connection = ConnectionMultiplexer.Connect(uri);
             database = connection.GetDatabase();
         }
 

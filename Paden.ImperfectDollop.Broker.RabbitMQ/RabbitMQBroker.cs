@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
@@ -9,15 +8,6 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
 {
     public class RabbitMQBroker : IBroker
     {
-        static readonly Lazy<IConfigurationRoot> config;
-        static readonly Lazy<string> rabbitMQUri;
-
-        static RabbitMQBroker()
-        {
-            config = new Lazy<IConfigurationRoot>(() => new ConfigurationBuilder().AddJsonFile("appsettings.json", false, false).AddEnvironmentVariables().Build());
-            rabbitMQUri = new Lazy<string>(() => config.Value["RabbitMQ:Uri"]);
-        }
-
         string ClientId { get; } = $"{Environment.MachineName}.{Guid.NewGuid():N}";
         readonly IConnection connection;
         readonly ConnectionFactory connectionFactory;
@@ -25,9 +15,9 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
         public bool IsMultiThreaded => true;
         public bool SupportsRemoteProcedureCall => true;
 
-        public RabbitMQBroker()
+        public RabbitMQBroker(string uri)
         {
-            connectionFactory = new ConnectionFactory() { Uri = new Uri(rabbitMQUri.Value) };
+            connectionFactory = new ConnectionFactory() { Uri = new Uri(uri) };
             connection = connectionFactory.CreateConnection(ClientId);
         }
 
