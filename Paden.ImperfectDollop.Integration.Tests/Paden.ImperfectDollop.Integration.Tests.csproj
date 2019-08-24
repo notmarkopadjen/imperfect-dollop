@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Paden.ImperfectDollop.Broker.RabbitMQ\Paden.ImperfectDollop.Broker.RabbitMQ.csproj" />
+    <ProjectReference Include="..\Paden.ImperfectDollop.Broker.Redis\Paden.ImperfectDollop.Broker.Redis.csproj" />
     <ProjectReference Include="..\Paden.ImperfectDollop\Paden.ImperfectDollop.csproj" />
   </ItemGroup>
 
