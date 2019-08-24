@@ -6,6 +6,16 @@ namespace Paden.ImperfectDollop
 {
     public abstract class Repository<T, TId> where T : Entity<TId>, new()
     {
+        public virtual TimeSpan? ExpiryInterval { get; } = TimeSpan.FromMinutes(2);
+        public virtual bool IsReadOnly { get; protected set; } = false;
+        public virtual IFallbackStrategy FallbackStrategy { get; } = new OneRetryThenRPCFallbackStrategy();
+
+        public abstract bool IsThreadSafe { get; }
+        public abstract ulong ItemCount { get; }
+
+        public Func<IEnumerable<T>> FallbackFunction { get; set; }
+        public DateTime? LastSourceRead { get; protected set; }
+
         private DateTime? sourceConnectionAliveSince;
         public DateTime? SourceConnectionAliveSince
         {
@@ -25,10 +35,6 @@ namespace Paden.ImperfectDollop
         }
         public bool SourceConnectionIsAlive => SourceConnectionAliveSince.HasValue;
 
-        public DateTime? LastSourceRead { get; protected set; }
-        public virtual TimeSpan? ExpiryInterval { get; } = TimeSpan.FromMinutes(2);
-        public virtual bool IsReadOnly { get; protected set; }
-
         public delegate void EntityEventHandler(object sender, EntityEventArgs<T> a);
         public event EntityEventHandler EntityCreated;
         public event EntityEventHandler EntityUpdated;
@@ -37,12 +43,6 @@ namespace Paden.ImperfectDollop
         public delegate void SourceConnectionStateChangedEventHandler(object sender, SourceConnectionStateChangedEventArgs a);
         public event SourceConnectionStateChangedEventHandler SourceConnectionStateChanged;
 
-        public virtual IFallbackStrategy FallbackStrategy { get; } = new OneRetryThenRPCFallbackStrategy();
-
-        public Func<IEnumerable<T>> FallbackFunction { get; set; }
-
-        public abstract bool IsThreadSafe { get; }
-        public abstract ulong ItemCount { get; }
 
         public Repository(IBroker broker = null)
         {
@@ -61,7 +61,7 @@ namespace Paden.ImperfectDollop
             try
             {
                 var result = GetAllFromSource();
-                LastSourceRead = 
+                LastSourceRead =
                 SourceConnectionAliveSince = DateTime.UtcNow;
                 return result;
             }
@@ -95,16 +95,20 @@ namespace Paden.ImperfectDollop
 
         public virtual void Create(T entity)
         {
+            if (IsReadOnly)
+            {
+                throw new ReadOnlyException("Cannot create new entity in read-only repository");
+            }
             try
             {
                 CreateInSource(entity);
                 SourceConnectionAliveSince = DateTime.UtcNow;
+                CreateReceived(entity);
                 EntityCreated?.Invoke(this, new EntityEventArgs<T>
                 {
                     EntityAction = EntityAction.Create,
                     Entity = entity
                 });
-                CreateReceived(entity);
             }
             catch (Exception)
             {
@@ -116,17 +120,21 @@ namespace Paden.ImperfectDollop
 
         public virtual void Update(T entity)
         {
+            if (IsReadOnly)
+            {
+                throw new ReadOnlyException("Cannot update entity in read-only repository");
+            }
             entity.Version++;
             try
             {
                 UpdateInSource(entity);
                 SourceConnectionAliveSince = DateTime.UtcNow;
+                UpdateReceived(entity);
                 EntityUpdated?.Invoke(this, new EntityEventArgs<T>
                 {
                     EntityAction = EntityAction.Update,
                     Entity = entity
                 });
-                UpdateReceived(entity);
             }
             catch (Exception)
             {
@@ -139,16 +147,20 @@ namespace Paden.ImperfectDollop
 
         public virtual void Delete(TId id)
         {
+            if (IsReadOnly)
+            {
+                throw new ReadOnlyException("Cannot delete entity in read-only repository");
+            }
             try
             {
                 DeleteInSource(id);
                 SourceConnectionAliveSince = DateTime.UtcNow;
+                DeleteReceived(id);
                 EntityDeleted?.Invoke(this, new EntityEventArgs<T>
                 {
                     EntityAction = EntityAction.Delete,
                     Entity = new T { Id = id }
                 });
-                DeleteReceived(id);
             }
             catch (Exception)
             {

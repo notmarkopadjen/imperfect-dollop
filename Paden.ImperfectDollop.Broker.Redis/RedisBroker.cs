@@ -47,6 +47,7 @@ namespace Paden.ImperfectDollop.Broker.Redis
             sub.Subscribe(xName, (channel, message) =>
             {
                 var action = JsonConvert.DeserializeObject<EntityEventArgs<T>>(message);
+                if (action.OriginatorId == ClientId) return;
                 switch (action.EntityAction)
                 {
                     case EntityAction.Create:
@@ -63,6 +64,7 @@ namespace Paden.ImperfectDollop.Broker.Redis
 
             Repository<T, TId>.EntityEventHandler repositoryAction = (object sender, EntityEventArgs<T> a) =>
             {
+                a.OriginatorId = ClientId;
                 sub.Publish(xName, JsonConvert.SerializeObject(a));
             };
 

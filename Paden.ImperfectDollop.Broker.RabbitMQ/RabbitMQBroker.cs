@@ -61,6 +61,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             consumer.Received += (model, ea) =>
             {
                 var action = JsonConvert.DeserializeObject<EntityEventArgs<T>>(Encoding.UTF8.GetString(ea.Body));
+                if (action.OriginatorId == ClientId) return;
                 switch (action.EntityAction)
                 {
                     case EntityAction.Create:
@@ -78,6 +79,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
 
             Repository<T, TId>.EntityEventHandler repositoryAction = (object sender, EntityEventArgs<T> a) =>
             {
+                a.OriginatorId = ClientId;
                 channel.BasicPublish(exchange: xName, routingKey: qName, basicProperties: null, body: Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(a)));
             };
 
