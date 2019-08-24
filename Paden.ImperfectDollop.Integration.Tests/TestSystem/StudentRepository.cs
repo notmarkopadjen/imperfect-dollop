@@ -13,7 +13,12 @@ namespace Paden.ImperfectDollop.Integration.Tests.TestSystem
             .AddJsonFile("appsettings.json", false, false)
             .AddEnvironmentVariables()
             .Build().GetConnectionString("DefaultConnection");
-        
+
+        public StudentRepository(IBroker broker = null) : base(broker)
+        {
+
+        }
+
         protected override StatusCode CreateInSource(Student entity)
         {
             return WithConnection(db => ExecuteHandled(() => db.Insert(entity)));

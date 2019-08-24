@@ -11,7 +11,7 @@ namespace Paden.ImperfectDollop
         public override bool IsThreadSafe => false;
         public override ulong ItemCount => (ulong)store.Count;
 
-        public DictionaryRepository()
+        public DictionaryRepository(IBroker broker = null) : base(broker)
         {
             store = new Dictionary<TId, T>(
                 base.GetAll().Select(l => new KeyValuePair<TId, T>(l.Id, l))

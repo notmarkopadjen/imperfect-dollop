@@ -10,7 +10,6 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
 {
     public class RPCClient<T> : IDisposable
     {
-        private readonly IConnection connection;
         private readonly IModel channel;
         private readonly string replyQueueName;
         private readonly EventingBasicConsumer consumer;
@@ -48,7 +47,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
 
         public void Dispose()
         {
-            connection.Close();
+            channel?.Close();
         }
     }
 }

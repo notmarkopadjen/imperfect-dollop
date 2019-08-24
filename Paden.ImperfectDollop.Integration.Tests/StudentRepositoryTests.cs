@@ -4,20 +4,18 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Paden.ImperfectDollop.Integration.Tests
 {
-    public class StudentRepositoryTests : IClassFixture<DatabaseFixture>, IDisposable
+    public class StudentRepositoryTests : IClassFixture<DatabaseFixture>
     {
         const int studentId = 1;
 
         private readonly DatabaseFixture fixture;
         private readonly ITestOutputHelper output;
-
-        StudentRepository systemUnderTest;
-        RabbitMQBroker broker;
 
         public StudentRepositoryTests(DatabaseFixture fixture, ITestOutputHelper output)
         {
@@ -25,72 +23,304 @@ namespace Paden.ImperfectDollop.Integration.Tests
             this.output = output;
 
             fixture.RecreateTables();
-
-            systemUnderTest = new StudentRepository();
-            systemUnderTest.ExecuteStatement(Student.ReCreateStatement);
-
-            broker = new RabbitMQBroker();
-            broker.StartFor(systemUnderTest);
         }
 
-        public void Dispose()
+        [Fact]
+        public void Should_Return_Entities_When_Asked_For()
         {
-            try
+            using (var broker = new RabbitMQBroker())
             {
-                broker.Dispose();
-            }
-            catch (Exception)
-            {
-                // ignored
+                var systemUnderTest = new StudentRepository(broker);
+                systemUnderTest.Create(new Student
+                {
+                    Name = "Not Marko Padjen"
+                });
+
+                var sw = new Stopwatch();
+                sw.Start();
+                Assert.True(systemUnderTest.GetAll().ToArray().Length > 0);
+                sw.Stop();
+
+                output.WriteLine($"Read run time (ms): {sw.ElapsedMilliseconds}");
             }
         }
 
         [Fact]
-        public void GetAll_Should_Return_Entities()
+        public void Should_Create_Update_Delete_Entity_And_Return_Proper_Results_Using_Database_And_Cache_On_All_Connected_Repositories()
         {
-            systemUnderTest.Create(new Student
-            {
-                Name = "Not Marko Padjen"
-            });
-
-            var sw = new Stopwatch();
-            sw.Start();
-            Assert.True(systemUnderTest.GetAll().ToArray().Length > 0);
-            sw.Stop();
-
-            output.WriteLine($"Read run time (ms): {sw.ElapsedMilliseconds}");
-        }
-
-        [Fact]
-        public void Repository_Should_Create_Update_Delete_Entity_And_Return_Proper_Results_Using_Database_And_Cache_On_All_Connected_Repositories()
-        {
-            var repository2 = new StudentRepository();
+            using (var broker = new RabbitMQBroker())
             using (var broker2 = new RabbitMQBroker())
             {
-                broker2.StartFor(repository2);
+                var repository = new StudentRepository(broker);
+                var repository2 = new StudentRepository(broker2);
 
-                systemUnderTest.Create(new Student
+                repository.Create(new Student
                 {
                     Name = "Not Marko Padjen"
                 });
 
                 string newName;
 
-                systemUnderTest.Update(new Student
+                repository.Update(new Student
                 {
                     Id = studentId,
                     Name = newName = $"Name {DateTime.Now}"
                 });
 
                 // Checking if database calls return updated name
-                Assert.Equal(newName, systemUnderTest.GetAll().First().Name);
+                Assert.Equal(newName, repository.GetAll().First().Name);
                 Thread.Sleep(100);
                 Assert.Equal(newName, repository2.GetAll().First().Name);
 
-                systemUnderTest.Delete(studentId);
+                repository.Delete(studentId);
 
                 // Checking if database table is empty after entity deletion
-                Assert.False(systemUnderTest.GetAll().Any());
+                Assert.False(repository.GetAll().Any());
+            }
+        }
+
+        [Fact]
+        public void Should_Propagate_Inserts_Properly()
+        {
+            const int systemsCount = 10;
+            const int entitiesCount = 10_000;
+
+            var propagationTolerance = TimeSpan.FromSeconds(2);
+
+            // Data seed
+            new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
+
+            // Systems init
+            var brokerBag = new RabbitMQBroker[systemsCount];
+            for (int i = 0; i < systemsCount; i++)
+            {
+                brokerBag[i] = new RabbitMQBroker();
+            }
+
+            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(brokerBag[l])).ToArray();
+            var masterRepository = repositoryBag.First();
+
+
+            void AssertAllRepositories(Predicate<StudentRepository> predicate)
+            {
+                var failed = repositoryBag.AsParallel().FirstOrDefault(l =>
+                {
+                    var startTime = DateTime.UtcNow;
+                    bool result = predicate(l);
+                    while (!result && (DateTime.UtcNow - startTime) < propagationTolerance)
+                    {
+                        result = predicate(l);
+                    }
+                    return !result;
+                });
+                Assert.True(failed == null, $"Repository {failed} is not null.");
+            }
+
+            try
+            {
+                // Verify all have all records loaded
+                AssertAllRepositories(r => r.ItemCount == entitiesCount);
+
+                // Insert new 100 items with name "100" using random repositories
+                var rand = new Random();
+                Parallel.For(10_001, 10_101, l =>
+                {
+                    repositoryBag[rand.Next(systemsCount - 1)].Create(new Student
+                    {
+                        Name = "100"
+                    });
+                });
+                AssertAllRepositories(r => r.GetAll().Count(l => l.Id > 10_000) == 100);
+            }
+            finally
+            {
+                // Dispose
+                for (int i = 0; i < systemsCount; i++)
+                {
+                    brokerBag[i].Dispose();
+                }
+            }
+        }
+
+        [Fact]
+        public void Should_Propagate_Updates_Properly()
+        {
+            const int systemsCount = 10;
+            const int entitiesCount = 10_000;
+
+            var propagationTolerance = TimeSpan.FromSeconds(2);
+
+            // Data seed
+            new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
+
+            // Systems init
+            var brokerBag = new RabbitMQBroker[systemsCount];
+            for (int i = 0; i < systemsCount; i++)
+            {
+                brokerBag[i] = new RabbitMQBroker();
+            }
+
+            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(brokerBag[l])).ToArray();
+            var masterRepository = repositoryBag.First();
+
+            void AssertAllRepositories(Predicate<StudentRepository> predicate)
+            {
+                var failed = repositoryBag.AsParallel().FirstOrDefault(l =>
+                {
+                    var startTime = DateTime.UtcNow;
+                    bool result = predicate(l);
+                    while (!result && (DateTime.UtcNow - startTime) < propagationTolerance)
+                    {
+                        result = predicate(l);
+                    }
+                    return !result;
+                });
+                Assert.True(failed == null, $"Repository {failed} is not null.");
+            }
+
+            try
+            {
+                // Verify all have all records loaded
+                AssertAllRepositories(r => r.ItemCount == entitiesCount);
+
+                // Set name "100" to first 100 entities using random repositories
+                var rand = new Random();
+                Parallel.ForEach(masterRepository.GetAll().Take(100), l =>
+                {
+                    l.Name = "100";
+                    repositoryBag[rand.Next(systemsCount - 1)].Update(l);
+                });
+                AssertAllRepositories(r => r.GetAll().Count(l => l.Name == "100") == 100);
+            }
+            finally
+            {
+                // Dispose
+                for (int i = 0; i < systemsCount; i++)
+                {
+                    brokerBag[i].Dispose();
+                }
+            }
+        }
+
+        [Fact]
+        public void Should_Propagate_Deletes_Properly()
+        {
+            const int systemsCount = 10;
+            const int entitiesCount = 10_000;
+
+            var propagationTolerance = TimeSpan.FromSeconds(2);
+
+            // Data seed
+            new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
+
+            // Systems init
+            var brokerBag = new RabbitMQBroker[systemsCount];
+            for (int i = 0; i < systemsCount; i++)
+            {
+                brokerBag[i] = new RabbitMQBroker();
+            }
+
+            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(brokerBag[l])).ToArray();
+            var masterRepository = repositoryBag.First();
+
+            void AssertAllRepositories(Predicate<StudentRepository> predicate)
+            {
+                var failed = repositoryBag.AsParallel().FirstOrDefault(l =>
+                {
+                    var startTime = DateTime.UtcNow;
+                    bool result = predicate(l);
+                    while (!result && (DateTime.UtcNow - startTime) < propagationTolerance)
+                    {
+                        result = predicate(l);
+                    }
+                    return !result;
+                });
+                Assert.True(failed == null, $"Repository {failed} is not null.");
+            }
+
+            try
+            {
+                // Verify all have all records loaded
+                AssertAllRepositories(r => r.ItemCount == entitiesCount);
+
+                // Snap fingers
+                var rand = new Random();
+                Parallel.ForEach(masterRepository.GetAll().Where(i => i.Id % 2 == 0), l =>
+                {
+                    repositoryBag[rand.Next(systemsCount - 1)].Delete(l.Id);
+                });
+                AssertAllRepositories(r => r.ItemCount == entitiesCount / 2);
+            }
+            finally
+            {
+                // Dispose
+                for (int i = 0; i < systemsCount; i++)
+                {
+                    brokerBag[i].Dispose();
+                }
+            }
+        }
+
+        [Fact]
+        public void Should_Return_Data_On_Source_Failure_And_Restart()
+        {
+            const int systemsCount = 10;
+            const int entitiesCount = 10_000;
+
+            var propagationTolerance = TimeSpan.FromSeconds(2);
+
+            // Data seed
+            new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
+
+            // Systems init
+            var brokerBag = new RabbitMQBroker[systemsCount];
+            for (int i = 0; i < systemsCount; i++)
+            {
+                brokerBag[i] = new RabbitMQBroker();
+            }
+
+            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(brokerBag[l])).ToArray();
+            var masterRepository = repositoryBag.First();
+
+            void AssertAllRepositories(Predicate<StudentRepository> predicate)
+            {
+                var failed = repositoryBag.AsParallel().FirstOrDefault(l =>
+                {
+                    var startTime = DateTime.UtcNow;
+                    bool result = predicate(l);
+                    while (!result && (DateTime.UtcNow - startTime) < propagationTolerance)
+                    {
+                        result = predicate(l);
+                    }
+                    return !result;
+                });
+                Assert.True(failed == null, $"Repository {failed} is not null.");
+            }
+
+            try
+            {
+                // Verify all have all records loaded
+                AssertAllRepositories(r => r.ItemCount == entitiesCount);
+
+                // Rename table
+                masterRepository.ExecuteStatement("RENAME TABLE `Students` to `NotStudents`;");
+
+                // Restart half
+                Parallel.ForEach(Enumerable.Range(0, systemsCount).Where(i => i % 2 == 0), i =>
+                {
+                    brokerBag[i].Dispose();
+                    brokerBag[i] = new RabbitMQBroker();
+                    repositoryBag[i] = new StudentRepository(brokerBag[i]);
+                });
+                AssertAllRepositories(r => r.ItemCount == entitiesCount);
+            }
+            finally
+            {
+                // Dispose
+                for (int i = 0; i < systemsCount; i++)
+                {
+                    brokerBag[i].Dispose();
+                }
             }
         }
     }

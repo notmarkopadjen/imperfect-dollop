@@ -13,7 +13,7 @@ namespace Paden.ImperfectDollop
         public override bool IsThreadSafe => true;
         public override ulong ItemCount => (ulong)store.Count;
 
-        public ConcurrentDictionaryRepository()
+        public ConcurrentDictionaryRepository(IBroker broker = null) : base(broker)
         {
             store = new ConcurrentDictionary<TId, T>(
                          base.GetAll().Select(l => new KeyValuePair<TId, T>(l.Id, l)));

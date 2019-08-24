@@ -43,6 +43,11 @@ namespace Paden.ImperfectDollop
         public abstract bool IsThreadSafe { get; }
         public abstract ulong ItemCount { get; }
 
+        public Repository(IBroker broker = null)
+        {
+            broker?.StartFor(this);
+        }
+
         public virtual IEnumerable<T> GetAll()
         {
             try
