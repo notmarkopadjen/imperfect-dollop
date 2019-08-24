@@ -29,20 +29,9 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             connectionFactory = new ConnectionFactory() { Uri = new Uri(rabbitMQUri.Value) };
             connection = connectionFactory.CreateConnection(ClientId);
         }
-
-        public event EventHandler BeforeDispose;
-
+        
         public void Dispose()
         {
-            try
-            {
-                BeforeDispose?.Invoke(this, EventArgs.Empty);
-            }
-            catch (Exception)
-            {
-                // ignored
-            }
-
             try
             {
                 connection?.Dispose();
@@ -64,14 +53,8 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             var xName = "Paden.ImperfectDollop." + typeof(T);
             var qName = $"{xName}.{ClientId}";
             channel.ExchangeDeclare(exchange: xName, ExchangeType.Fanout);
-            channel.QueueDeclare(queue: qName, durable: false, exclusive: false, autoDelete: false, arguments: null);
+            channel.QueueDeclare(queue: qName, durable: false, exclusive: true, autoDelete: true, arguments: null);
             channel.QueueBind(queue: qName, exchange: xName, routingKey: qName /* will be ignored */, arguments: null);
-
-            BeforeDispose += (object sender, EventArgs e) =>
-            {
-                channel.QueueUnbind(queue: qName, exchange: xName, routingKey: qName /* will be ignored */, arguments: null);
-                channel.QueueDelete(queue: qName);
-            };
 
             var consumer = new EventingBasicConsumer(channel);
             consumer.Received += (model, ea) =>
