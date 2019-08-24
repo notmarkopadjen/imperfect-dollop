@@ -92,7 +92,7 @@ namespace Paden.ImperfectDollop
                 }
                 return result;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 return StatusCode.UnkownError;
             }

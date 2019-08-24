@@ -9,9 +9,11 @@ using Xunit.Abstractions;
 
 namespace Paden.ImperfectDollop.Integration.Tests
 {
-    public abstract class StudentRepositoryTests : IClassFixture<DatabaseFixture>
+    public abstract class StudentRepositoryTests
     {
         const int studentId = 1;
+
+        TimeSpan propagationTolerance = TimeSpan.FromSeconds(2);
 
         private readonly DatabaseFixture fixture;
         private readonly ITestOutputHelper output;
@@ -32,10 +34,10 @@ namespace Paden.ImperfectDollop.Integration.Tests
             using (var broker = CreateBroker())
             {
                 var systemUnderTest = new StudentRepository(broker);
-                systemUnderTest.Create(new Student
+                Assert.Equal(StatusCode.Success, systemUnderTest.Create(new Student
                 {
                     Name = "Not Marko Padjen"
-                });
+                }));
 
                 var sw = new Stopwatch();
                 sw.Start();
@@ -55,25 +57,25 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 var repository = new StudentRepository(broker);
                 var repository2 = new StudentRepository(broker2);
 
-                repository.Create(new Student
+                Assert.Equal(StatusCode.Success, repository.Create(new Student
                 {
                     Name = "Not Marko Padjen"
-                });
+                }));
 
                 string newName;
 
-                repository.Update(new Student
+                Assert.Equal(StatusCode.Success, repository.Update(new Student
                 {
                     Id = studentId,
                     Name = newName = $"Name {DateTime.Now}"
-                });
+                }));
 
                 // Checking if database calls return updated name
                 Assert.Equal(newName, repository.GetAll().First().Name);
                 Thread.Sleep(100);
                 Assert.Equal(newName, repository2.GetAll().First().Name);
 
-                repository.Delete(studentId);
+                Assert.Equal(StatusCode.Success, repository.Delete(studentId));
 
                 // Checking if database table is empty after entity deletion
                 Assert.False(repository.GetAll().Any());
@@ -85,8 +87,6 @@ namespace Paden.ImperfectDollop.Integration.Tests
         {
             const int systemsCount = 10;
             const int entitiesCount = 10_000;
-
-            var propagationTolerance = TimeSpan.FromSeconds(2);
 
             // Data seed
             new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
@@ -126,10 +126,10 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 var rand = new Random();
                 Parallel.For(10_001, 10_101, l =>
                 {
-                    repositoryBag[rand.Next(systemsCount - 1)].Create(new Student
+                    Assert.Equal(StatusCode.Success, repositoryBag[rand.Next(systemsCount - 1)].Create(new Student
                     {
                         Name = "100"
-                    });
+                    }));
                 });
                 AssertAllRepositories(r => r.GetAll().Count(l => l.Id > 10_000) == 100);
             }
@@ -148,8 +148,6 @@ namespace Paden.ImperfectDollop.Integration.Tests
         {
             const int systemsCount = 10;
             const int entitiesCount = 10_000;
-
-            var propagationTolerance = TimeSpan.FromSeconds(2);
 
             // Data seed
             new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
@@ -189,7 +187,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 Parallel.ForEach(masterRepository.GetAll().Take(100), l =>
                 {
                     l.Name = "100";
-                    repositoryBag[rand.Next(systemsCount - 1)].Update(l);
+                    Assert.Equal(StatusCode.Success, repositoryBag[rand.Next(systemsCount - 1)].Update(l));
                 });
                 AssertAllRepositories(r => r.GetAll().Count(l => l.Name == "100") == 100);
             }
@@ -208,8 +206,6 @@ namespace Paden.ImperfectDollop.Integration.Tests
         {
             const int systemsCount = 10;
             const int entitiesCount = 10_000;
-
-            var propagationTolerance = TimeSpan.FromSeconds(2);
 
             // Data seed
             new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
@@ -248,7 +244,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 var rand = new Random();
                 Parallel.ForEach(masterRepository.GetAll().Where(i => i.Id % 2 == 0), l =>
                 {
-                    repositoryBag[rand.Next(systemsCount - 1)].Delete(l.Id);
+                    Assert.Equal(StatusCode.Success, repositoryBag[rand.Next(systemsCount - 1)].Delete(l.Id));
                 });
                 AssertAllRepositories(r => r.ItemCount == entitiesCount / 2);
             }
@@ -262,13 +258,11 @@ namespace Paden.ImperfectDollop.Integration.Tests
             }
         }
 
-        [Fact]
+        // [Fact]
         public void Should_Return_Data_On_Source_Failure_And_Restart()
         {
             const int systemsCount = 10;
             const int entitiesCount = 10_000;
-
-            var propagationTolerance = TimeSpan.FromSeconds(2);
 
             // Data seed
             new StudentRepository().ExecuteStatement("insert into Students(`name`, `version`) select CONCAT('Name ', seq) AS `name`, 0 from seq_1_to_" + entitiesCount);
