@@ -23,13 +23,14 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
         readonly ConnectionFactory connectionFactory;
 
         public bool IsMultiThreaded => true;
+        public bool SupportsRemoteProcedureCall => true;
 
         public RabbitMQBroker()
         {
             connectionFactory = new ConnectionFactory() { Uri = new Uri(rabbitMQUri.Value) };
             connection = connectionFactory.CreateConnection(ClientId);
         }
-        
+
         public void Dispose()
         {
             try
@@ -42,7 +43,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             }
         }
 
-        public void StartFor<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
+        public void ListenFor<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
         {
             if (!repository.IsThreadSafe)
             {
@@ -83,7 +84,10 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             repository.EntityCreated += repositoryAction;
             repository.EntityUpdated += repositoryAction;
             repository.EntityDeleted += repositoryAction;
+        }
 
+        public void StartRPC<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
+        {
             repository.FallbackFunction = () =>
             {
                 using (var rpcClient = new RPCClient<T>(connection))

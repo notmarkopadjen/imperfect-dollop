@@ -45,7 +45,14 @@ namespace Paden.ImperfectDollop
 
         public Repository(IBroker broker = null)
         {
-            broker?.StartFor(this);
+            if (broker != null)
+            {
+                broker.ListenFor(this);
+                if (broker.SupportsRemoteProcedureCall)
+                {
+                    broker.StartRPC(this);
+                }
+            }
         }
 
         public virtual IEnumerable<T> GetAll()

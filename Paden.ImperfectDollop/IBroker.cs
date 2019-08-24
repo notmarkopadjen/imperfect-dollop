@@ -5,6 +5,8 @@ namespace Paden.ImperfectDollop
     public interface IBroker : IDisposable
     {
         bool IsMultiThreaded { get; }
-        void StartFor<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new();
+        bool SupportsRemoteProcedureCall { get; }
+        void ListenFor<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new();
+        void StartRPC<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new();
     }
 }

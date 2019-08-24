@@ -258,7 +258,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
             }
         }
 
-        // [Fact]
+        [Fact]
         public void Should_Return_Data_On_Source_Failure_And_Restart()
         {
             const int systemsCount = 10;

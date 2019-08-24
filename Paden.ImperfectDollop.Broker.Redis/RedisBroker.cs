@@ -2,6 +2,8 @@
 using Newtonsoft.Json;
 using StackExchange.Redis;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Paden.ImperfectDollop.Broker.Redis
 {
@@ -19,9 +21,12 @@ namespace Paden.ImperfectDollop.Broker.Redis
 
         public bool IsMultiThreaded => false;
 
+        public bool SupportsRemoteProcedureCall => true;
 
         readonly ConnectionMultiplexer connection;
         readonly IDatabase database;
+
+        public TimeSpan RPCLoopInterval { get; } = TimeSpan.FromMilliseconds(100);
 
         public RedisBroker()
         {
@@ -34,11 +39,9 @@ namespace Paden.ImperfectDollop.Broker.Redis
             connection?.Dispose();
         }
 
-        public void StartFor<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
+        public void ListenFor<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
         {
-            var xName = "Paden.ImperfectDollop." + typeof(T);
-            var qName = $"{xName}.{ClientId}";
-
+            var xName = "Paden:ImperfectDollop:" + typeof(T);
             var sub = connection.GetSubscriber();
 
             sub.Subscribe(xName, (channel, message) =>
@@ -66,6 +69,74 @@ namespace Paden.ImperfectDollop.Broker.Redis
             repository.EntityCreated += repositoryAction;
             repository.EntityUpdated += repositoryAction;
             repository.EntityDeleted += repositoryAction;
+        }
+
+        public void StartRPC<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
+        {
+            repository.FallbackFunction = () => RPCClient<T>.GetData(database);
+            StartRPCServer(repository);
+        }
+        
+        void StartRPCServer<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
+        {
+            bool listen = default;
+
+            Repository<T, TId>.SourceConnectionStateChangedEventHandler connectionStateChangedAction = null;
+            connectionStateChangedAction = (object sender, SourceConnectionStateChangedEventArgs a) =>
+            {
+                if (a.IsAlive)
+                {
+                    repository.SourceConnectionStateChanged -= connectionStateChangedAction;
+                    StartRPCServer(repository);
+                }
+                else
+                {
+                    listen = default;
+                }
+            };
+            repository.SourceConnectionStateChanged += connectionStateChangedAction;
+
+            if (!repository.SourceConnectionIsAlive) return;
+
+            listen = true;
+
+            Task.Run(() =>
+            {
+                string replyChannel = default;
+                while (listen)
+                {
+                    replyChannel = database.ListRightPop(RPCClient<T>.RoutingKey);
+                    if (string.IsNullOrEmpty(replyChannel))
+                    {
+                        Thread.Sleep(RPCLoopInterval);
+                    }
+                    else
+                    {
+                        if (!repository.SourceConnectionAliveSince.HasValue)
+                        {
+                            listen = false;
+                            database.ListRightPush(RPCClient<T>.RoutingKey, replyChannel);
+                        }
+                        else
+                        {
+                            string response = default;
+                            try
+                            {
+                                response = JsonConvert.SerializeObject(repository.GetAll());
+                            }
+                            catch (Exception)
+                            {
+                                // ignored
+                                response = string.Empty;
+                            }
+                            finally
+                            {
+                                database.ListRightPush(replyChannel, response);
+                            }
+                        }
+                    }
+                }
+            });
         }
     }
 }
