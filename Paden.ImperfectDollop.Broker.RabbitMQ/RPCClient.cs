@@ -10,6 +10,8 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
 {
     public class RPCClient<T> : IDisposable
     {
+        private const int rpcTimeoutMiliseconds = 10_000;
+
         private readonly IModel channel;
         private readonly string replyQueueName;
         private readonly EventingBasicConsumer consumer;
@@ -42,7 +44,11 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
         {
             channel.BasicPublish(exchange: string.Empty, routingKey: RoutingKey, basicProperties: props);
             channel.BasicConsume(consumer: consumer, queue: replyQueueName, autoAck: true);
-            return JsonConvert.DeserializeObject<IEnumerable<T>>(respQueue.Take());
+            if (respQueue.TryTake(out var item, rpcTimeoutMiliseconds))
+            {
+                return JsonConvert.DeserializeObject<IEnumerable<T>>(item);
+            }
+            throw new TimeoutException();
         }
 
         public void Dispose()

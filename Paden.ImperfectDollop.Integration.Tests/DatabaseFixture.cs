@@ -24,7 +24,6 @@ namespace Paden.ImperfectDollop.Integration.Tests
             Connection.ChangeDatabase(DatabaseName);
 
             ConnectionString = $"{connectionString};Database={DatabaseName}";
-            Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", ConnectionString, EnvironmentVariableTarget.Process);
         }
 
         public void RecreateTables()

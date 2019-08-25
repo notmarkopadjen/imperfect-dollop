@@ -1,18 +1,23 @@
 ﻿using Dapper.Contrib.Extensions;
+using Microsoft.Extensions.Options;
 using MySql.Data.MySqlClient;
+using Paden.ImperfectDollop;
 using System;
 using System.Collections.Generic;
 using System.Data;
 
-namespace Paden.ImperfectDollop.Integration.Tests.TestSystem
+namespace Paden.SimpleREST
 {
     public class StudentRepository : ConcurrentDictionaryRepository<Student, int>
     {
         private readonly string connectionString;
 
-        public StudentRepository(string connectionString, IBroker broker = null) : base(broker)
+        public StudentRepository(IOptions<Settings> settings, IBroker broker = null) : base(broker)
         {
-            this.connectionString = connectionString;
+            connectionString = settings.Value.Database;
+            ExecuteStatement($"CREATE DATABASE IF NOT EXISTS `{Student.PreferedDatabase}`");
+            connectionString = $"{connectionString};Database={Student.PreferedDatabase}";
+            ExecuteStatement(Student.ReCreateStatement);
         }
 
         protected override void CreateInSource(Student entity)

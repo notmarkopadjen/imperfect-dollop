@@ -6,38 +6,40 @@ namespace Paden.ImperfectDollop
 {
     public abstract class DictionaryRepository<T, TId> : Repository<T, TId> where T : Entity<TId>, new()
     {
-        Dictionary<TId, T> store;
+        Lazy<Dictionary<TId, T>> store;
 
         public override bool IsThreadSafe => false;
-        public override ulong ItemCount => (ulong)store.Count;
+        public override ulong ItemCount => (ulong)store.Value.Count;
 
         public DictionaryRepository(IBroker broker = null) : base(broker)
         {
-            store = new Dictionary<TId, T>(
-                base.GetAll().Select(l => new KeyValuePair<TId, T>(l.Id, l))
-            );
+            store = new Lazy<Dictionary<TId, T>>(StoreFactory);
+        }
+        Dictionary<TId, T> StoreFactory()
+        {
+            return new Dictionary<TId, T>(base.GetAll().Select(l => new KeyValuePair<TId, T>(l.Id, l)));
         }
 
         private void RefreshIfRequired()
         {
             if (ExpiryInterval.HasValue && !LastSourceRead.HasValue || DateTime.UtcNow - LastSourceRead.Value >= ExpiryInterval)
             {
-                store = new Dictionary<TId, T>(
-                    base.GetAll().Select(l => new KeyValuePair<TId, T>(l.Id, l))
-                );
+                store = new Lazy<Dictionary<TId, T>>(StoreFactory);
             }
         }
 
         public override IEnumerable<T> GetAll()
         {
+            var s = store.Value;
             RefreshIfRequired();
-            return store.Values;
+            return s.Values;
         }
 
         public override T Get(TId id)
         {
+            var s = store.Value;
             RefreshIfRequired();
-            return store.TryGetValue(id, out var entity) ? entity : default;
+            return s.TryGetValue(id, out var entity) ? entity : default;
         }
         protected override T GetFromSource(TId id)
         {
@@ -46,16 +48,16 @@ namespace Paden.ImperfectDollop
 
         public override void CreateReceived(T entity)
         {
-            store.TryAdd(entity.Id, entity);
+            store.Value.TryAdd(entity.Id, entity);
         }
 
         public override void UpdateReceived(T entity)
         {
-            if (store.TryGetValue(entity.Id, out var oldValue))
+            if (store.Value.TryGetValue(entity.Id, out var oldValue))
             {
                 if (oldValue.Version < entity.Version)
                 {
-                    store[entity.Id] = entity;
+                    store.Value[entity.Id] = entity;
                 }
             }
             else
@@ -66,7 +68,7 @@ namespace Paden.ImperfectDollop
 
         public override void DeleteReceived(TId id)
         {
-            store.Remove(id, out var _);
+            store.Value.Remove(id, out var _);
         }
     }
 }
