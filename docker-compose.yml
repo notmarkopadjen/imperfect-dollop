@@ -1,20 +1,47 @@
-version: '3'
+version: '3.4'
+x-sample-app:
+  &sample-web
+  build:
+    context: .
+    dockerfile: ./Paden.SimpleREST/Dockerfile
+  ports:
+  - "5081:80"
+  - "5431:443"
+  environment:
+    - Settings__Database=Server=imperfect-dollop-mariadb;Port=3306;User ID=root;Password=password;
+    - Settings__RabbitMQ=amqp://guest:guest@imperfect-dollop-rabbitmq:5672
+    - Settings__Redis=imperfect-dollop-redis:6379
+  depends_on:
+    - imperfect-dollop-mariadb
+    - imperfect-dollop-rabbitmq
+    - imperfect-dollop-redis
+
 services:
   imperfect-dollop-sample-1:
-    build:
-      context: .
-      dockerfile: ./Paden.SimpleREST/Dockerfile
+    << : *sample-web
     ports:
     - "5081:80"
     - "5431:443"
-    environment:
-      - Settings__Database=Server=imperfect-dollop-mariadb;Port=3306;User ID=root;Password=password;
-      - Settings__RabbitMQ=amqp://guest:guest@imperfect-dollop-rabbitmq:5672
-      - Settings__Redis=imperfect-dollop-redis:6379
-    depends_on:
-      - imperfect-dollop-mariadb
-      - imperfect-dollop-rabbitmq
-      - imperfect-dollop-redis
+  imperfect-dollop-sample-2:
+    << : *sample-web
+    ports:
+    - "5082:80"
+    - "5432:443"
+  imperfect-dollop-sample-3:
+    << : *sample-web
+    ports:
+    - "5083:80"
+    - "5433:443"
+  imperfect-dollop-sample-4:
+    << : *sample-web
+    ports:
+    - "5084:80"
+    - "5434:443"
+  imperfect-dollop-sample-5:
+    << : *sample-web
+    ports:
+    - "5085:80"
+    - "5435:443"
   imperfect-dollop-mariadb:
     image: 'mariadb:10.4'
     environment:
