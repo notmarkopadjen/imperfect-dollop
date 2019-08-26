@@ -7,8 +7,8 @@ using Microsoft.Extensions.Options;
 using Paden.ImperfectDollop;
 using Paden.ImperfectDollop.Broker.RabbitMQ;
 using Paden.ImperfectDollop.Broker.Redis;
+using Paden.ImperfectDollop.Prometheus;
 using Paden.SimpleREST.Data;
-using Paden.SimpleREST.Prometheus;
 using Prometheus;
 
 namespace Paden.SimpleREST
@@ -45,9 +45,8 @@ namespace Paden.SimpleREST
             //    return new RedisBroker(settings.Value.Redis);
             //});
             services.AddSingleton<StudentRepository>();
-            services.AddSingleton<StudentRepositoryMetrics>();
-
-            services.BuildServiceProvider().GetService<StudentRepositoryMetrics>();
+            services.AddSingleton(sp => new RepositoryMetrics<StudentRepository, Student, int>(sp.GetService<StudentRepository>()));
+            services.BuildServiceProvider().GetService<RepositoryMetrics<StudentRepository, Student, int>>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -22,7 +22,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Paden.ImperfectDollop.Broke
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Paden.ImperfectDollop.Broker.Redis", "Paden.ImperfectDollop.Broker.Redis\Paden.ImperfectDollop.Broker.Redis.csproj", "{DF20B957-EA72-43D9-89D7-9B1B468AF92A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paden.SimpleREST", "Paden.SimpleREST\Paden.SimpleREST.csproj", "{BFAAEB75-47CA-4C1C-AF3C-2DDC349F6663}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Paden.SimpleREST", "Paden.SimpleREST\Paden.SimpleREST.csproj", "{BFAAEB75-47CA-4C1C-AF3C-2DDC349F6663}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paden.ImperfectDollop.Prometheus", "Paden.ImperfectDollop.Prometheus\Paden.ImperfectDollop.Prometheus.csproj", "{C13C1F07-3BB0-4E9E-92EC-8C64B1A7B702}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -50,6 +52,10 @@ Global
 		{BFAAEB75-47CA-4C1C-AF3C-2DDC349F6663}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BFAAEB75-47CA-4C1C-AF3C-2DDC349F6663}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BFAAEB75-47CA-4C1C-AF3C-2DDC349F6663}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C13C1F07-3BB0-4E9E-92EC-8C64B1A7B702}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C13C1F07-3BB0-4E9E-92EC-8C64B1A7B702}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C13C1F07-3BB0-4E9E-92EC-8C64B1A7B702}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C13C1F07-3BB0-4E9E-92EC-8C64B1A7B702}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

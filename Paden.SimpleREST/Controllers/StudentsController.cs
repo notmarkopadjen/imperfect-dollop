@@ -14,28 +14,25 @@ namespace Paden.SimpleREST.Controllers
         {
             this.studentRepository = studentRepository;
         }
-        // GET api/values
+
         [HttpGet]
         public IEnumerable<Student> Get()
         {
             return studentRepository.GetAll();
         }
 
-        // GET api/values/5
         [HttpGet("{id}")]
         public Student Get(int id)
         {
             return studentRepository.Get(id);
         }
 
-        // POST api/values
         [HttpPost]
         public void Post([FromBody] Student value)
         {
             studentRepository.Create(value);
         }
 
-        // PUT api/values/5
         [HttpPut("{id}")]
         public void Put(int id, [FromBody] Student value)
         {
@@ -43,11 +40,21 @@ namespace Paden.SimpleREST.Controllers
             studentRepository.Update(value);
         }
 
-        // DELETE api/values/5
         [HttpDelete("{id}")]
         public void Delete(int id)
         {
             studentRepository.Delete(id);
+        }
+
+        [HttpGet("info")]
+        public RepositoryInfo GetInfo()
+        {
+            return new RepositoryInfo
+            {
+                EntitiesCount = studentRepository.ItemCount,
+                LastSourceRead = studentRepository.LastSourceRead,
+                SourceConnectionAliveSince = studentRepository.SourceConnectionAliveSince
+            };
         }
     }
 }
