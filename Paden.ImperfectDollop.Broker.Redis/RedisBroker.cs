@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using StackExchange.Redis;
 using System;
 using System.Threading;
@@ -15,18 +16,28 @@ namespace Paden.ImperfectDollop.Broker.Redis
 
         readonly ConnectionMultiplexer connection;
         readonly IDatabase database;
+        private readonly ILogger<RedisBroker> logger;
 
         public TimeSpan RPCLoopInterval { get; } = TimeSpan.FromMilliseconds(100);
 
-        public RedisBroker(string uri)
+        public RedisBroker(string uri, ILogger<RedisBroker> logger)
         {
+            this.logger = logger;
+            logger?.LogTrace("Started initiating client: {0} with Uri: {1}", ClientId, uri);
             connection = ConnectionMultiplexer.Connect(uri);
             database = connection.GetDatabase();
         }
 
         public void Dispose()
         {
-            connection?.Dispose();
+            try
+            {
+                connection?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Exception while disposing");
+            }
         }
 
         public void ListenFor<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
@@ -34,9 +45,12 @@ namespace Paden.ImperfectDollop.Broker.Redis
             var xName = "Paden:ImperfectDollop:" + typeof(T);
             var sub = connection.GetSubscriber();
 
+            logger?.LogTrace("Subscribing to: {0}", xName);
+
             sub.Subscribe(xName, (channel, message) =>
             {
                 var action = JsonConvert.DeserializeObject<EntityEventArgs<T>>(message);
+                logger?.LogTrace("Topic {0} got message from {1}:\r\n{2}", xName, action.OriginatorId, message);
                 if (action.OriginatorId == ClientId) return;
                 switch (action.EntityAction)
                 {
@@ -55,7 +69,9 @@ namespace Paden.ImperfectDollop.Broker.Redis
             Repository<T, TId>.EntityEventHandler repositoryAction = (object sender, EntityEventArgs<T> a) =>
             {
                 a.OriginatorId = ClientId;
-                sub.Publish(xName, JsonConvert.SerializeObject(a));
+                var message = JsonConvert.SerializeObject(a);
+                logger?.LogTrace("Pushing to {0}:\r\n{1}", xName, message);
+                sub.Publish(xName, message);
             };
 
             repository.EntityCreated += repositoryAction;
@@ -65,7 +81,12 @@ namespace Paden.ImperfectDollop.Broker.Redis
 
         public void StartRPC<T, TId>(Repository<T, TId> repository) where T : Entity<TId>, new()
         {
-            repository.FallbackFunction = () => RPCClient<T>.GetData(database);
+            repository.FallbackFunction = () =>
+            {
+                logger?.LogTrace("Getting RPC data for: {0}", repository);
+                return RPCClient<T>.GetData(database);
+            };
+            logger?.LogTrace("Starting RPC for: {0}", repository);
             StartRPCServer(repository);
         }
         
@@ -76,6 +97,7 @@ namespace Paden.ImperfectDollop.Broker.Redis
             Repository<T, TId>.SourceConnectionStateChangedEventHandler connectionStateChangedAction = null;
             connectionStateChangedAction = (object sender, SourceConnectionStateChangedEventArgs a) =>
             {
+                logger?.LogTrace("Connection for repository {0} change to {1}", repository, a.IsAlive);
                 if (a.IsAlive)
                 {
                     repository.SourceConnectionStateChanged -= connectionStateChangedAction;
@@ -98,6 +120,7 @@ namespace Paden.ImperfectDollop.Broker.Redis
                 while (listen)
                 {
                     replyChannel = database.ListRightPop(RPCClient<T>.RoutingKey);
+                    logger?.LogTrace("Got RPC read request with reply ID {0}", replyChannel);
                     if (string.IsNullOrEmpty(replyChannel))
                     {
                         Thread.Sleep(RPCLoopInterval);
@@ -106,6 +129,7 @@ namespace Paden.ImperfectDollop.Broker.Redis
                     {
                         if (!repository.SourceConnectionAliveSince.HasValue)
                         {
+                            logger?.LogTrace("Got message, but repository is down");
                             listen = false;
                             database.ListRightPush(RPCClient<T>.RoutingKey, replyChannel);
                         }
@@ -123,6 +147,7 @@ namespace Paden.ImperfectDollop.Broker.Redis
                             }
                             finally
                             {
+                                logger?.LogTrace("Pushing RPC reply to {0}:\r\n{1}", replyChannel, response);
                                 database.ListRightPush(replyChannel, response);
                             }
                         }

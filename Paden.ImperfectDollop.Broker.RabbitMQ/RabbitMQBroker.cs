@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
@@ -11,12 +12,15 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
         string ClientId { get; } = $"{Environment.MachineName}.{Guid.NewGuid():N}";
         readonly IConnection connection;
         readonly ConnectionFactory connectionFactory;
+        private readonly ILogger logger;
 
         public bool IsMultiThreaded => true;
         public bool SupportsRemoteProcedureCall => true;
 
-        public RabbitMQBroker(string uri)
+        public RabbitMQBroker(string uri, ILogger<RabbitMQBroker> logger)
         {
+            this.logger = logger;
+            logger?.LogTrace("Started initiating client: {0} with Uri: {1}", ClientId, uri);
             connectionFactory = new ConnectionFactory() { Uri = new Uri(uri) };
             connection = connectionFactory.CreateConnection(ClientId);
         }
@@ -27,9 +31,9 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             {
                 connection?.Dispose();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // ignored
+                logger?.LogError(ex, "Exception while disposing");
             }
         }
 
@@ -44,13 +48,17 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             var xName = "Paden.ImperfectDollop." + typeof(T);
             var qName = $"{xName}.{ClientId}";
             channel.ExchangeDeclare(exchange: xName, ExchangeType.Fanout);
+            logger?.LogTrace("Creating exchange: {0}", xName);
             channel.QueueDeclare(queue: qName, durable: false, exclusive: true, autoDelete: true, arguments: null);
+            logger?.LogTrace("Creating queue: {0}", qName);
             channel.QueueBind(queue: qName, exchange: xName, routingKey: qName /* will be ignored */, arguments: null);
 
             var consumer = new EventingBasicConsumer(channel);
             consumer.Received += (model, ea) =>
             {
-                var action = JsonConvert.DeserializeObject<EntityEventArgs<T>>(Encoding.UTF8.GetString(ea.Body));
+                var message = Encoding.UTF8.GetString(ea.Body);
+                var action = JsonConvert.DeserializeObject<EntityEventArgs<T>>(message);
+                logger?.LogTrace("Queue {0} got message from {1}:\r\n{2}", qName, action.OriginatorId, message);
                 if (action.OriginatorId == ClientId) return;
                 switch (action.EntityAction)
                 {
@@ -70,7 +78,9 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             Repository<T, TId>.EntityEventHandler repositoryAction = (object sender, EntityEventArgs<T> a) =>
             {
                 a.OriginatorId = ClientId;
-                channel.BasicPublish(exchange: xName, routingKey: qName, basicProperties: null, body: Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(a)));
+                var message = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(a));
+                logger?.LogTrace("Pushing to {0}:\r\n{1}", qName, message);
+                channel.BasicPublish(exchange: xName, routingKey: qName, basicProperties: null, body: message);
             };
 
             repository.EntityCreated += repositoryAction;
@@ -82,12 +92,15 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
         {
             repository.FallbackFunction = () =>
             {
-                using (var rpcClient = new RPCClient<T>(connection))
+                logger?.LogTrace("Making RPC call for: {0}", repository);
+                using (var rpcClient = new RPCClient<T>(connection, logger))
                 {
+                    logger?.LogTrace("Getting RPC data for: {0}", repository);
                     return rpcClient.GetData();
                 }
             };
 
+            logger?.LogTrace("Starting RPC for: {0}", repository);
             StartRPCServer(repository);
         }
 
@@ -98,6 +111,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             Repository<T, TId>.SourceConnectionStateChangedEventHandler connectionStateChangedAction = null;
             connectionStateChangedAction = (object sender, SourceConnectionStateChangedEventArgs a) =>
             {
+                logger?.LogTrace("Connection for repository {0} change to {1}", repository, a.IsAlive);
                 if (a.IsAlive)
                 {
                     repository.SourceConnectionStateChanged -= connectionStateChangedAction;
@@ -113,6 +127,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             if (!repository.SourceConnectionIsAlive) return;
 
             rpcChannel = connection.CreateModel();
+            logger?.LogTrace("Creating queue: {0}", RPCClient<T>.RoutingKey);
             rpcChannel.QueueDeclare(queue: RPCClient<T>.RoutingKey, durable: false, exclusive: false, autoDelete: false, arguments: null);
             rpcChannel.BasicQos(0, 1, false);
             var rpcConsumer = new EventingBasicConsumer(rpcChannel);
@@ -122,6 +137,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
             {
                 if (!repository.SourceConnectionAliveSince.HasValue)
                 {
+                    logger?.LogTrace("Got message, but repository is down");
                     rpcChannel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
                     try
                     {
@@ -141,6 +157,8 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
                 var replyProps = rpcChannel.CreateBasicProperties();
                 replyProps.CorrelationId = props.CorrelationId;
 
+                logger?.LogTrace("Got RPC read request with ID {0}", replyProps.CorrelationId);
+
                 try
                 {
                     response = JsonConvert.SerializeObject(repository.GetAll());
@@ -152,6 +170,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
                 }
                 finally
                 {
+                    logger?.LogTrace("Pushing RPC reply to {0}:\r\n{1}", props.ReplyTo, response);
                     rpcChannel.BasicPublish(exchange: string.Empty, routingKey: props.ReplyTo, basicProperties: replyProps, body: Encoding.UTF8.GetBytes(response));
                     rpcChannel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
                 }
