@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
+using Paden.SimpleREST.Data;
 
 namespace Paden.SimpleREST.Controllers
 {

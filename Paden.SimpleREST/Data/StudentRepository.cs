@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 
-namespace Paden.SimpleREST
+namespace Paden.SimpleREST.Data
 {
     public class StudentRepository : ConcurrentDictionaryRepository<Student, int>
     {

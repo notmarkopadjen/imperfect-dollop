@@ -1,6 +1,6 @@
 ﻿using Paden.ImperfectDollop;
 
-namespace Paden.SimpleREST
+namespace Paden.SimpleREST.Data
 {
     public class Student : Entity<int>
     {

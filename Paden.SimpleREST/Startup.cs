@@ -7,6 +7,9 @@ using Microsoft.Extensions.Options;
 using Paden.ImperfectDollop;
 using Paden.ImperfectDollop.Broker.RabbitMQ;
 using Paden.ImperfectDollop.Broker.Redis;
+using Paden.SimpleREST.Data;
+using Paden.SimpleREST.Prometheus;
+using Prometheus;
 
 namespace Paden.SimpleREST
 {
@@ -42,6 +45,9 @@ namespace Paden.SimpleREST
             //    return new RedisBroker(settings.Value.Redis);
             //});
             services.AddSingleton<StudentRepository>();
+            services.AddSingleton<StudentRepositoryMetrics>();
+
+            services.BuildServiceProvider().GetService<StudentRepositoryMetrics>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -56,6 +62,7 @@ namespace Paden.SimpleREST
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
+            app.UseMetricServer();
 
             app.UseHttpsRedirection();
             app.UseMvc();
