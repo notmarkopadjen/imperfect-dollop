@@ -2,10 +2,27 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
+    <Authors>Marko Pađen</Authors>
+    <Company>Marko Pađen</Company>
+    <Product>Imperfect Dollop</Product>
+    <Description>Distributed in-memory cache</Description>
+    <Copyright>2019</Copyright>
+    <PackageProjectUrl></PackageProjectUrl>
+    <RepositoryUrl>https://github.com/notmarkopadjen/imperfect-dollop</RepositoryUrl>
+    <RepositoryType>GitHub</RepositoryType>
+    <PackageTags>cache, database, repository, dictionary</PackageTags>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,17 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
+    <Authors>Marko Pađen</Authors>
+    <Company>Marko Pađen</Company>
+    <Product>Imperfect Dollop RabbitMQ</Product>
+    <Description>RabbitMQ broker for Imperfect Dollop distributed in-memory cache</Description>
+    <Copyright>2019</Copyright>
+    <PackageProjectUrl></PackageProjectUrl>
+    <RepositoryUrl>https://github.com/notmarkopadjen/imperfect-dollop</RepositoryUrl>
+    <RepositoryType>GitHub</RepositoryType>
+    <PackageTags>rabbitmq, mq, cache, broker, rpc</PackageTags>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +22,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Paden.ImperfectDollop\Paden.ImperfectDollop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
