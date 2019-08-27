@@ -1,4 +1,5 @@
 ﻿using Dapper.Contrib.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MySql.Data.MySqlClient;
 using Paden.ImperfectDollop;
@@ -12,12 +13,12 @@ namespace Paden.SimpleREST.Data
     {
         private readonly string connectionString;
 
-        public StudentRepository(IOptions<Settings> settings, IBroker broker = null) : base(broker)
+        public StudentRepository(IOptions<Settings> settings, ILogger<StudentRepository> logger = null, IBroker broker = null) : base(logger, broker)
         {
             connectionString = settings.Value.Database;
             ExecuteStatement($"CREATE DATABASE IF NOT EXISTS `{Student.PreferedDatabase}`");
             connectionString = $"{connectionString};Database={Student.PreferedDatabase}";
-            ExecuteStatement(Student.ReCreateStatement);
+            ExecuteStatement(Student.CreateStatement);
         }
 
         protected override void CreateInSource(Student entity)

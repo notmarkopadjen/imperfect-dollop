@@ -1,4 +1,5 @@
 ﻿using Dapper.Contrib.Extensions;
+using Microsoft.Extensions.Logging;
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,7 @@ namespace Paden.ImperfectDollop.Integration.Tests.TestSystem
     {
         private readonly string connectionString;
 
-        public StudentRepository(string connectionString, IBroker broker = null) : base(broker)
+        public StudentRepository(string connectionString, ILogger<StudentRepository> logger = null, IBroker broker = null) : base(logger, broker)
         {
             this.connectionString = connectionString;
         }

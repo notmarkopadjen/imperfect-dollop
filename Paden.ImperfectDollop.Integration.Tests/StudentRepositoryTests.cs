@@ -33,7 +33,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
         {
             using (var broker = CreateBroker())
             {
-                var systemUnderTest = new StudentRepository(fixture.ConnectionString, broker);
+                var systemUnderTest = new StudentRepository(fixture.ConnectionString, null, broker);
                 systemUnderTest.Create(new Student
                 {
                     Name = "Not Marko Padjen"
@@ -54,8 +54,8 @@ namespace Paden.ImperfectDollop.Integration.Tests
             using (var broker = CreateBroker())
             using (var broker2 = CreateBroker())
             {
-                var repository = new StudentRepository(fixture.ConnectionString, broker);
-                var repository2 = new StudentRepository(fixture.ConnectionString, broker2);
+                var repository = new StudentRepository(fixture.ConnectionString, null, broker);
+                var repository2 = new StudentRepository(fixture.ConnectionString, null, broker2);
 
                 repository.Create(new Student
                 {
@@ -97,7 +97,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 brokerBag[i] = CreateBroker();
             }
 
-            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(fixture.ConnectionString, brokerBag[l])).ToArray();
+            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(fixture.ConnectionString, null, brokerBag[l])).ToArray();
             var masterRepository = repositoryBag.First();
 
 
@@ -158,7 +158,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 brokerBag[i] = CreateBroker();
             }
 
-            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(fixture.ConnectionString, brokerBag[l])).ToArray();
+            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(fixture.ConnectionString, null, brokerBag[l])).ToArray();
             var masterRepository = repositoryBag.First();
 
             void AssertAllRepositories(Predicate<StudentRepository> predicate)
@@ -216,7 +216,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 brokerBag[i] = CreateBroker();
             }
 
-            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(fixture.ConnectionString, brokerBag[l])).ToArray();
+            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(fixture.ConnectionString, null, brokerBag[l])).ToArray();
             var masterRepository = repositoryBag.First();
 
             void AssertAllRepositories(Predicate<StudentRepository> predicate)
@@ -273,7 +273,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 brokerBag[i] = CreateBroker();
             }
 
-            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(fixture.ConnectionString, brokerBag[l])).ToArray();
+            var repositoryBag = Enumerable.Range(0, systemsCount).Select(l => new StudentRepository(fixture.ConnectionString, null, brokerBag[l])).ToArray();
             var masterRepository = repositoryBag.First();
 
             void AssertAllRepositories(Predicate<StudentRepository> predicate)
@@ -304,7 +304,7 @@ namespace Paden.ImperfectDollop.Integration.Tests
                 {
                     brokerBag[i].Dispose();
                     brokerBag[i] = CreateBroker();
-                    repositoryBag[i] = new StudentRepository(fixture.ConnectionString, brokerBag[i]);
+                    repositoryBag[i] = new StudentRepository(fixture.ConnectionString, null, brokerBag[i]);
                 });
                 AssertAllRepositories(r => r.ItemCount == entitiesCount);
             }

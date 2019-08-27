@@ -1,4 +1,5 @@
-﻿using Paden.ImperfectDollop.FallbackStrategies;
+﻿using Microsoft.Extensions.Logging;
+using Paden.ImperfectDollop.FallbackStrategies;
 using System;
 using System.Collections.Generic;
 
@@ -8,7 +9,7 @@ namespace Paden.ImperfectDollop
     {
         public virtual TimeSpan? ExpiryInterval { get; } = TimeSpan.FromMinutes(2);
         public virtual bool IsReadOnly { get; protected set; } = false;
-        public virtual IFallbackStrategy FallbackStrategy { get; } = new OneRetryThenRPCFallbackStrategy();
+        public virtual IFallbackStrategy FallbackStrategy => new OneRetryThenRPCFallbackStrategy(logger);
 
         public abstract bool IsThreadSafe { get; }
         public abstract ulong ItemCount { get; }
@@ -17,6 +18,8 @@ namespace Paden.ImperfectDollop
         public DateTime? LastSourceRead { get; protected set; }
 
         private DateTime? sourceConnectionAliveSince;
+        protected readonly ILogger logger;
+
         public DateTime? SourceConnectionAliveSince
         {
             get => sourceConnectionAliveSince;
@@ -44,13 +47,16 @@ namespace Paden.ImperfectDollop
         public event SourceConnectionStateChangedEventHandler SourceConnectionStateChanged;
 
 
-        public Repository(IBroker broker = null)
+        public Repository(ILogger logger = null, IBroker broker = null)
         {
+            this.logger = logger;
             if (broker != null)
             {
+                logger?.LogTrace("Broker provided. Starting listener");
                 broker.ListenFor(this);
                 if (broker.SupportsRemoteProcedureCall)
                 {
+                    logger?.LogTrace("Broker supports RPC. Starting RPC listener");
                     broker.StartRPC(this);
                 }
             }
@@ -60,6 +66,7 @@ namespace Paden.ImperfectDollop
         {
             try
             {
+                logger?.LogTrace("Reading all from source");
                 var result = GetAllFromSource();
                 LastSourceRead =
                 SourceConnectionAliveSince = DateTime.UtcNow;
@@ -67,6 +74,7 @@ namespace Paden.ImperfectDollop
             }
             catch (Exception ex)
             {
+                logger?.LogError(ex, "Exception on GetAll");
                 SourceConnectionAliveSince = null;
                 if (FallbackStrategy != null && FallbackFunction != null)
                 {
@@ -81,12 +89,14 @@ namespace Paden.ImperfectDollop
         {
             try
             {
+                logger?.LogTrace("Reading by id {0} from source", id);
                 var result = GetFromSource(id);
                 SourceConnectionAliveSince = DateTime.UtcNow;
                 return result;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger?.LogError(ex, "Exception on Get({0})", id);
                 SourceConnectionAliveSince = null;
                 throw;
             }
@@ -101,6 +111,7 @@ namespace Paden.ImperfectDollop
             }
             try
             {
+                logger?.LogTrace("Creating entity {0}", entity);
                 CreateInSource(entity);
                 SourceConnectionAliveSince = DateTime.UtcNow;
                 CreateReceived(entity);
@@ -110,8 +121,9 @@ namespace Paden.ImperfectDollop
                     Entity = entity
                 });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger?.LogError(ex, "Exception on Create({0})", entity);
                 SourceConnectionAliveSince = null;
                 throw;
             }
@@ -127,6 +139,7 @@ namespace Paden.ImperfectDollop
             entity.Version++;
             try
             {
+                logger?.LogTrace("Updating entity {0}", entity);
                 UpdateInSource(entity);
                 SourceConnectionAliveSince = DateTime.UtcNow;
                 UpdateReceived(entity);
@@ -136,8 +149,9 @@ namespace Paden.ImperfectDollop
                     Entity = entity
                 });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger?.LogError(ex, "Exception on Update({0})", entity);
                 SourceConnectionAliveSince = null;
                 entity.Version--;
                 throw;
@@ -153,6 +167,7 @@ namespace Paden.ImperfectDollop
             }
             try
             {
+                logger?.LogTrace("Deleting by id {0} from source", id);
                 DeleteInSource(id);
                 SourceConnectionAliveSince = DateTime.UtcNow;
                 DeleteReceived(id);
@@ -162,8 +177,9 @@ namespace Paden.ImperfectDollop
                     Entity = new T { Id = id }
                 });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger?.LogError(ex, "Exception on Delete({0})", id);
                 SourceConnectionAliveSince = null;
                 throw;
             }

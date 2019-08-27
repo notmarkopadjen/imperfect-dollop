@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +14,7 @@ namespace Paden.ImperfectDollop
         public override bool IsThreadSafe => true;
         public override ulong ItemCount => (ulong)store.Value.Count;
 
-        public ConcurrentDictionaryRepository(IBroker broker = null) : base(broker)
+        public ConcurrentDictionaryRepository(ILogger logger = null, IBroker broker = null) : base(logger, broker)
         {
             store = new Lazy<ConcurrentDictionary<TId, T>>(StoreFactory);
         }
@@ -32,9 +33,12 @@ namespace Paden.ImperfectDollop
                 Task.Run(() =>
                 {
                     isRefreshing = true;
+                    logger?.LogTrace("Refreshing data source");
                     try
                     {
                         store = new Lazy<ConcurrentDictionary<TId, T>>(StoreFactory);
+                        var s = store.Value;
+                        logger?.LogTrace("Updated store {0}", s);
                     }
                     finally
                     {

@@ -20,7 +20,7 @@ namespace Paden.ImperfectDollop.Broker.Redis
 
         public TimeSpan RPCLoopInterval { get; } = TimeSpan.FromMilliseconds(100);
 
-        public RedisBroker(string uri, ILogger<RedisBroker> logger)
+        public RedisBroker(string uri, ILogger<RedisBroker> logger = null)
         {
             this.logger = logger;
             logger?.LogTrace("Started initiating client: {0} with Uri: {1}", ClientId, uri);
@@ -84,7 +84,7 @@ namespace Paden.ImperfectDollop.Broker.Redis
             repository.FallbackFunction = () =>
             {
                 logger?.LogTrace("Getting RPC data for: {0}", repository);
-                return RPCClient<T>.GetData(database);
+                return RPCClient<T>.GetData(database, logger);
             };
             logger?.LogTrace("Starting RPC for: {0}", repository);
             StartRPCServer(repository);

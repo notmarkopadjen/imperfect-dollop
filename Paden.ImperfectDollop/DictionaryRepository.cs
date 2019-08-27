@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -11,7 +12,7 @@ namespace Paden.ImperfectDollop
         public override bool IsThreadSafe => false;
         public override ulong ItemCount => (ulong)store.Value.Count;
 
-        public DictionaryRepository(IBroker broker = null) : base(broker)
+        public DictionaryRepository(ILogger logger = null, IBroker broker = null) : base(logger, broker)
         {
             store = new Lazy<Dictionary<TId, T>>(StoreFactory);
         }
@@ -24,7 +25,10 @@ namespace Paden.ImperfectDollop
         {
             if (ExpiryInterval.HasValue && !LastSourceRead.HasValue || DateTime.UtcNow - LastSourceRead.Value >= ExpiryInterval)
             {
+                logger?.LogTrace("Refreshing data source");
                 store = new Lazy<Dictionary<TId, T>>(StoreFactory);
+                var s = store.Value;
+                logger?.LogTrace("Updated store {0}", s);
             }
         }
 

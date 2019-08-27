@@ -17,7 +17,7 @@ namespace Paden.ImperfectDollop.Broker.RabbitMQ
         public bool IsMultiThreaded => true;
         public bool SupportsRemoteProcedureCall => true;
 
-        public RabbitMQBroker(string uri, ILogger<RabbitMQBroker> logger)
+        public RabbitMQBroker(string uri, ILogger<RabbitMQBroker> logger = null)
         {
             this.logger = logger;
             logger?.LogTrace("Started initiating client: {0} with Uri: {1}", ClientId, uri);

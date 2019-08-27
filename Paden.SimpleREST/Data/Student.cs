@@ -7,7 +7,10 @@ namespace Paden.SimpleREST.Data
         public const string PreferedDatabase = "University";
         public const string ReCreateStatement = @"
 DROP TABLE IF EXISTS `Students`;
-CREATE TABLE `Students`  (
+" + CreateStatement;
+
+        public const string CreateStatement = @"
+CREATE TABLE IF NOT EXISTS `Students`  (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
   `version` bigint(255) UNSIGNED NULL DEFAULT NULL,
