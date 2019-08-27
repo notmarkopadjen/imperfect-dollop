@@ -47,7 +47,7 @@ namespace Paden.SimpleREST
             //services.AddSingleton<IBroker, RedisBroker>(sp =>
             //{
             //    var settings = sp.GetService<IOptions<Settings>>();
-            //    return new RedisBroker(settings.Value.Redis);
+            //    return new RedisBroker(settings.Value.Redis, sp.GetService<ILogger<RedisBroker>>());
             //});
             services.AddSingleton<StudentRepository>();
             services.AddSingleton(sp => new RepositoryMetrics<StudentRepository, Student, int>(sp.GetService<StudentRepository>()));
