@@ -15,15 +15,12 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.2.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.7.9" />
     <PackageReference Include="MySqlConnector" Version="0.56.0" />
+    <PackageReference Include="Paden.ImperfectDollop" Version="1.0.0" />
+    <PackageReference Include="Paden.ImperfectDollop.Broker.RabbitMQ" Version="1.0.0" />
+    <PackageReference Include="Paden.ImperfectDollop.Broker.Redis" Version="1.0.0" />
+    <PackageReference Include="Paden.ImperfectDollop.Prometheus" Version="1.0.0" />
     <PackageReference Include="prometheus-net" Version="3.1.4" />
     <PackageReference Include="prometheus-net.AspNetCore" Version="3.1.4" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Paden.ImperfectDollop.Broker.RabbitMQ\Paden.ImperfectDollop.Broker.RabbitMQ.csproj" />
-    <ProjectReference Include="..\Paden.ImperfectDollop.Broker.Redis\Paden.ImperfectDollop.Broker.Redis.csproj" />
-    <ProjectReference Include="..\Paden.ImperfectDollop.Prometheus\Paden.ImperfectDollop.Prometheus.csproj" />
-    <ProjectReference Include="..\Paden.ImperfectDollop\Paden.ImperfectDollop.csproj" />
   </ItemGroup>
 
   <ItemGroup>

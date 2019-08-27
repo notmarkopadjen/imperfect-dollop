@@ -18,11 +18,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.2.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+    <PackageReference Include="Paden.ImperfectDollop" Version="1.0.0" />
     <PackageReference Include="RabbitMQ.Client" Version="5.1.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Paden.ImperfectDollop\Paden.ImperfectDollop.csproj" />
   </ItemGroup>
 
   <ItemGroup>

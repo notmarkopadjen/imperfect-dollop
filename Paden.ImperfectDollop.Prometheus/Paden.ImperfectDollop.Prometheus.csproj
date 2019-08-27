@@ -16,11 +16,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Paden.ImperfectDollop" Version="1.0.0" />
     <PackageReference Include="prometheus-net" Version="3.1.4" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Paden.ImperfectDollop\Paden.ImperfectDollop.csproj" />
   </ItemGroup>
 
   <ItemGroup>
