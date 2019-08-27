@@ -1,7 +1,7 @@
 ![project icon](Assets/icon-64.png)
 
 # Imperfect Dollop
-This is a .net library that helps use create distributed in-memory cache.
+**This is a .net library that helps user create distributed in-memory cache.**
 
 The library targets [.net core 2.2](https://dotnet.microsoft.com/download/dotnet-core/2.2)
 
