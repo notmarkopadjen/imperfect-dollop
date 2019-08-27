@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
@@ -12,6 +12,7 @@
     <RepositoryType>GitHub</RepositoryType>
     <PackageTags>cache, database, repository, dictionary</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageIconUrl>https://raw.githubusercontent.com/notmarkopadjen/imperfect-dollop/master/Assets/icon.png</PackageIconUrl>
   </PropertyGroup>
 
   <ItemGroup>
